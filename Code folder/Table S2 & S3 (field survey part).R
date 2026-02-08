@@ -130,7 +130,6 @@ print(Path_SR_mod_anova)
 AM_field_hel_no <- as.data.frame(t(fungi_Flattening))[ ,subset(ASV_tax_information, Guilds == "Arbuscular Mycorrhizal")$ASV_ID]
 AM_field_hel_no <- AM_field_hel_no[, colSums(AM_field_hel_no) > 0]
 dim(AM_field_hel_no)
-
 AM_field_hel_no_add <- AM_field_hel_no
 AM_field_hel_no_add[rowSums(AM_field_hel_no_add) == 0, ] <- 1e-6
 
