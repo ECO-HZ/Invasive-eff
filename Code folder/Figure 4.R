@@ -213,7 +213,7 @@ ggplot(data = Field_BC_data_all, aes(x = all_traits, y = Field_dist)) +
   theme_bw() + mytheme + 
   theme(legend.position = c(0.85, 0.15),
         legend.background = element_rect(fill = NA)) + 
-  labs(x = "Pairwise plant functional distance",
+  labs(x = "Pairwise plant functional traits distance",
        y = "Pairwise Bray–Curtis dissimilarities\nestimated in the field", tag = "a") -> p1; p1
 
 ################################# Figure 4b ####################################
@@ -408,8 +408,6 @@ if(use.custom.cors == T) {
     obs.exp.cors.mat <- cor.mat.true - med.tax.cors}
 diag(obs.exp.cors.mat) <- 0
 
-
-#### 
 #### 生成所需的连接度和凝聚度向量
 # 通过对观察到的正负相关性求平均来计算连接度
 connectedness.pos <- apply(obs.exp.cors.mat, 2, pos.mean)
@@ -673,6 +671,3 @@ Figure_4g_right <- Figure_4g_right + scale_y_continuous(limits = range_y, breaks
 
 # 
 Figure_4g_left + Figure_4g_right + plot_layout(widths = c(0.25, 0.75)) -> Figure_4g; Figure_4g
-
-
-
