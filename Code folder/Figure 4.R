@@ -308,7 +308,7 @@ use.custom.cors <- F
 
 # input data (36 data sets (native or alien per site per year))
 sub_field_group = subset(Field_group, Site == "Wuhan" & Year == "2020" & Origin == "Native")
-otu_filtered = fungi_Flattening[,sub_field_group$Sample_ID]
+otu_filtered = Field_raw_abun[,sub_field_group$Sample_ID]
 otu_filtered = as.data.frame(t(otu_filtered[rowSums(otu_filtered) > 0, ]))
 otu_filtered[1:3,1:3]
 dim(otu_filtered)
@@ -318,110 +318,111 @@ c <- as.matrix(b)
 c <- c[rowSums(c) > 0, colSums(c) > 0]
 dim(c)
 
-# 保存原始矩阵中每个样本的总个体数。如果数据为相对丰度，则此值为1，但如果矩阵c为计数数据，则不是。
 rowsums.orig <- rowSums(c)
 
-# 只保留至少存在于 3 个样本中的 ASV
+# Only retain ASVs that are present in at least 3 samples.
 d <- c[, colSums(c > 0) >= 3]
 
-# 移除因 ASV 被筛掉而没有任何丰度的样本
+# Remove samples that have no abundance due to ASV filtering.
 d <- d[rowSums(d) > 0, ]
 dim(d)
 # View(d)
-# 创建相对丰度矩阵。
+
+# Create a relative abundance matrix.
 rel.d <- d / rowsums.orig
-# 可选，检查剔除分类群后保留的群落比例
+
+# Optional: Check the proportion of community retained after removing taxa.
 #hist(rowSums(rel.d))
 
-# 创建观察到的相关性矩阵
+# Create the observed correlation matrix.
 cor.mat.true <- cor(rel.d)
 dim(cor.mat.true)
 
 
-# 创建保存初始分类群的中位otu-otu相关性的向量
+# Create a vector that saves the median ASV-ASV correlation of the initial taxa.
 med.tax.cors <- vector()
-# 运行此循环以获取期望的成对相关性（空模型）
-# 如果选择输入自定义相关性矩阵，则绕过空模型
+# Execute this loop to obtain the expected pairwise correlations (null model).
+# If a custom correlation matrix is selected as input, bypass the null model.
 if(use.custom.cors == F) {
   if(tax.shuffle == T) { 
-    pb <- txtProgressBar(min = 0, max = dim(rel.d)[2], style = 3)  # 初始化进度条
+    pb <- txtProgressBar(min = 0, max = dim(rel.d)[2], style = 3)  # Initialize the progress bar.
     for(which.taxon in 1:dim(rel.d)[2]){        
-      # 创建向量以保存每个单独分类群的每次排列的相关性    
-      ## perm.cor.vec.mat代表排列相关性向量矩阵    
+      # Create a vector to store the correlation for each individual taxon per permutation.   
+      # perm.cor.vec.mat represents the permutation correlation vector matrix. 
       perm.cor.vec.mat <- vector()        
       for(i in 1:iter){      
-        # 创建与rel.d相同维度的空矩阵      
+        # Create an empty matrix with the same dimensions as rel.d.      
         perm.rel.d <- matrix(numeric(0), dim(rel.d)[1], dim(rel.d)[2])      
         rownames(perm.rel.d) <- rownames(rel.d)      
         colnames(perm.rel.d) <- colnames(rel.d)            
-        # 对每个分类群      
+        # For each taxon      
         for(j in 1:dim(rel.d)[2]){         
-          # 用排列的分类群向量替换原始分类群向量        
+          # Replace the original taxon vector with the permuted taxon vector.        
           perm.rel.d[, j ] <- sample(rel.d[ ,j ])       
         }            
-        # 不随机化焦点列      
+        # Do not randomize the focal column.      
         perm.rel.d[, which.taxon] <- rel.d[ , which.taxon]            
-        # 计算排列矩阵的相关性矩阵      
+        # Compute the correlation matrix of the permuted matrix.      
         cor.mat.null <- cor(perm.rel.d)            
-        # 对每次迭代，保存焦点分类群与其他分类群之间的空矩阵相关性向量      
+        # For each iteration, save the vector of null model correlations between the focal taxon and other taxa.     
         perm.cor.vec.mat <- cbind(perm.cor.vec.mat, cor.mat.null[, which.taxon])          
       }    
-      # 保存焦点分类群与所有其他分类群之间的中位相关性    
+      # Save the median correlation between the focal taxon and all other taxa.    
       med.tax.cors <- cbind(med.tax.cors, apply(perm.cor.vec.mat, 1, median))
-      setTxtProgressBar(pb, which.taxon)  # 更新进度条
+      setTxtProgressBar(pb, which.taxon)  # Update the progress bar.
     }
-    close(pb)  # 关闭进度条
+    close(pb)  # Close the progress bar.
   } else {  
-    pb <- txtProgressBar(min = 0, max = dim(rel.d)[2], style = 3)  # 初始化进度条
+    pb <- txtProgressBar(min = 0, max = dim(rel.d)[2], style = 3) # Initialize the progress bar.
     for(which.taxon in 1:dim(rel.d)[2]){       
-      # 创建向量以保存每个单独分类群的每次排列的相关性    
-      ## perm.cor.vec.mat代表排列相关性向量矩阵    
+      # Create a vector to save the correlation for each individual taxon per permutation.   
+      # perm.cor.vec.mat represents the permutation correlation vector matrix.   
       perm.cor.vec.mat <- vector()        
       for(i in 1:iter){      
-        # 创建用于洗牌丰度的重复矩阵      
+        # Create a repeated matrix for shuffled abundances.      
         perm.rel.d <- rel.d             
-        # 对每个分类群      
+        # For each taxon.     
         for(j in 1:dim(rel.d)[1]){         
           which.replace <- which(rel.d[j, ] > 0 )         
-          # 如果焦点分类群大于零，则从替换向量中去掉，以保持焦点丰度不变        
+          # If the focal taxon is greater than zero, remove it from the replacement vector to keep the focal abundance unchanged.        
           which.replace.nonfocal <- which.replace[!(which.replace %in% which.taxon)]                
-          # 用一个向量替换原始分类群向量，该向量中大于0的值已被随机排列        
+          # Replace the original taxon vector with a vector where values greater than 0 have been randomly permuted.        
           perm.rel.d[j, which.replace.nonfocal] <- sample(rel.d[ j, which.replace.nonfocal])       
         }
-        # 计算排列矩阵的相关性矩阵      
+        # Calculate the correlation matrix of the permuted matrix.      
         cor.mat.null <- cor(perm.rel.d)            
-        # 对每次迭代，保存焦点分类群与其他分类群之间的空矩阵相关性向量      
+        # For each iteration, save the null model correlation vector between the focal taxon and the other taxa.      
         perm.cor.vec.mat <- cbind(perm.cor.vec.mat, cor.mat.null[, which.taxon])          
       }    
-      # 保存焦点分类群与所有其他分类群之间的中位相关性    
+      # Save the median correlation between the focal taxon and all other taxa.   
       med.tax.cors <- cbind(med.tax.cors, apply(perm.cor.vec.mat, 1, median))        
-      # 对大型数据集来说，这可以帮助了解这个循环将运行多久    
-      setTxtProgressBar(pb, which.taxon)  # 更新进度条
+      # For large datasets, this can help estimate how long this loop will run. 
+      setTxtProgressBar(pb, which.taxon)  # Update the progress bar.
     } 
-    close(pb)  # 关闭进度条
+    close(pb)  # Close the progress bar.
   }
 }
 
-# 保存观察与预期的相关性差。如果use.custom.cors = TRUE，则使用自定义相关性
+# Save the observed vs. expected correlation difference. If use.custom.cors = TRUE, use custom correlations.
 if(use.custom.cors == T) {  
   obs.exp.cors.mat <- custom.cor.mat.sub} else{    
     obs.exp.cors.mat <- cor.mat.true - med.tax.cors}
 diag(obs.exp.cors.mat) <- 0
 
-#### 生成所需的连接度和凝聚度向量
-# 通过对观察到的正负相关性求平均来计算连接度
+# Generate the required connectivity and coherence vectors
+# Calculate connectivity by averaging the observed positive and negative correlations
 connectedness.pos <- apply(obs.exp.cors.mat, 2, pos.mean)
 length(connectedness.pos)
 connectedness.neg <- apply(obs.exp.cors.mat, 2, neg.mean)
 length(connectedness.neg)
 
-# 通过将相对丰度数据集与相关的连接度相乘来计算凝聚度
+# Calculate coherence by multiplying the relative abundance dataset with the associated connectivity.
 cohesion.pos <- rel.d %*% connectedness.pos
 cohesion.neg <- rel.d %*% connectedness.neg
 
 print(data.frame(cohesion.pos = cohesion.pos, cohesion.neg = cohesion.neg))
 
-#### 将向量组合成一个列表
+# Combine the vectors into a list.
 output <- list(connectedness.neg, connectedness.pos, cohesion.neg, cohesion.pos)
 names(output) <- c("Negative Connectedness", "Positive Connectedness", "Negative Cohesion", "Positive Cohesion")
 print(output)
@@ -440,6 +441,7 @@ Field_group2$Origin <- factor(Field_group2$Origin, levels = c("Native", "Alien")
 
 ################################# Figure 4d ####################################
 t.test(Field_group2$total.cohesion ~ Field_group2$Origin)
+(0.4069875-0.3846417)/0.3846417
 
 ggplot(data = Field_group2, aes(x = Origin, y = total.cohesion, fill = Origin)) +
   geom_boxplot(outliers = T, width = 0.35, color = "black") + 
