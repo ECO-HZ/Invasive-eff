@@ -2,7 +2,9 @@
 ################################# Figure S1 ####################################
 ################################################################################
 
+# loading R packages
 library(openxlsx) # version 4.2.5.2
+library(limma) # version 3.50.3
 
 # Soil sample grouping information in field
 Field_group <- read.xlsx("Field_data_group.xlsx", sheet = "field_group", rowNames = T, colNames = T)
@@ -35,7 +37,6 @@ sum(Green_otu_raw)
 field_ASV = data.frame(ASV = rownames(Field_otu_raw), type = "Field")
 green_ASV = data.frame(ASV = rownames(Green_otu_raw), type = "Green")
 
-library(limma) # version 3.50.3
 venn_data = rbind(field_ASV,green_ASV)
 venn_data$abun = 1
 venn_data <- as.data.frame(reshape2 ::acast(venn_data, formula = ASV ~ type , value.var = "abun", fill = 0))
@@ -45,22 +46,37 @@ venn_data=venn_data[rowSums(venn_data)>0,]
 v_venn_data=vennCounts(venn_data)
 vennDiagram(v_venn_data, circle.col = c('#3A648C', '#B79C64'), lwd=4, cex=1, scale=F)
 
-# common ASVs id
+# Filter common ASV IDs
 common_ASVs <- intersect(rownames(Field_otu_raw), rownames(Green_otu_raw))
 length(common_ASVs)
 
+#Assessing the contribution of shared ASVs to community composition variation in
+#the field survey and the greenhouse experiment.
 
-####### 评估共有ASVs对温室实验组成变异贡献
+# converted the raw ASVs abundance data to relative abundances in greenhouse exp.
 Green_otu_rel <- apply(Green_otu_raw, 2, function(x) x / sum(x))
 Green_otu_rel <- as.data.frame(Green_otu_rel)
-colSums(Green_otu_rel)
 
+Green_long_abun <- data.frame(ASV = row.names(Green_otu_rel), Green_otu_rel) %>%
+  tidyr::pivot_longer(cols = -ASV, names_to = "Sample_ID",values_to = "abun") %>%
+  left_join(Green_group[,c("Sample_ID", "Species")])
+
+Green_mean_rel = Green_long_abun %>% group_by(Species, ASV) %>%
+  summarise(mean_abun = mean(abun))
+
+Green_mean_matrix <- Green_mean_rel %>%
+  tidyr::pivot_wider(names_from = Species, values_from = mean_abun, values_fill = 0) %>%
+  tibble::column_to_rownames("ASV") 
+
+# converted the raw ASVs abundance data to relative abundances in field survey
 Field_otu_rel <- apply(Field_otu_raw, 2, function(x) x / sum(x))
 Field_otu_rel <- as.data.frame(Field_otu_rel)
 colSums(Field_otu_rel)
 
 
-# 分年份站点依次计算共有类群对样本组成的变异贡献
+# The contribution of shared taxa to the variation in community composition was 
+# calculated separately for each site and year.
+
 Year = unique(Field_group$Year)
 Site = unique(Field_group$Site)
 diff_BC_merge_all = NULL
@@ -71,15 +87,13 @@ for (i in Year) {
     
     # Field survey
     Field_otu_rel_sub = Field_otu_rel[,sub_group$Sample_ID]
-    #Field_otu_rel_sub = Field_otu_rel_sub[rowSums(Field_otu_rel_sub) > 0, ]
-    
-    ## Step 1: 计算全体类群组成变异 ----
-    # 计算样本间平均绝对差（类似 Bray–Curtis，但无抽平）
+
+    # Step 1: Calculate compositional variation of the entire community.
     x <- apply(combn(ncol(Field_otu_rel_sub), 2), 2, function(x) sum(abs(Field_otu_rel_sub[,x[1]] - Field_otu_rel_sub[,x[2]]))/2 )
     x_names <- apply(combn(ncol(Field_otu_rel_sub), 2), 2, function(x) paste(colnames(Field_otu_rel_sub)[x], collapse=' - '))
     Field_BC_full <- data.frame(x, x_names)
     
-    ## Step 2. 共有类群的样本间差异
+    # Step 2: Calculate compositional variation of the common community.
     Field_common_sub <- Field_otu_rel_sub[common_ASVs, ]
     x <- apply(combn(ncol(Field_common_sub), 2), 2, function(x) sum(abs(Field_common_sub[, x[1]] - Field_common_sub[, x[2]]))/2)
     x_names <- apply(combn(ncol(Field_common_sub), 2), 2, function(x) paste(colnames(Field_common_sub)[x], collapse=' - '))
@@ -87,10 +101,7 @@ for (i in Year) {
     
     # add site, year information
     diff_BC_Field <- left_join(Field_BC_full, Field_BC_common, by=c('x_names'))
-    #head(diff_BC_Field)
     diff_BC_Field$diff_BC <- diff_BC_Field$x.y/diff_BC_Field$x.x
-    #mean(diff_BC_Field$diff_BC)
-    #dim(diff_BC_Field)
     diff_BC_Field$Years = i; diff_BC_Field$Site = ii; diff_BC_Field$Type = "Field"
     
     # add species information
@@ -98,7 +109,7 @@ for (i in Year) {
     diff_BC_Field$Sample_ID1 <- sapply(split_names, function(x) x[1])
     diff_BC_Field$Sample_ID2 <- sapply(split_names, function(x) x[2])
     
-    # 直接添加物种信息
+    # add species information
     diff_BC_Field$Species_1 <- sub_group$Species[match(diff_BC_Field$Sample_ID1, rownames(sub_group))]
     diff_BC_Field$Species_2 <- sub_group$Species[match(diff_BC_Field$Sample_ID2, rownames(sub_group))]
     
@@ -109,8 +120,7 @@ for (i in Year) {
     
     # Greenhouse experiment
     
-    ## Step 1: 计算全体类群组成变异 ----
-    # 计算整体样本间平均绝对差
+    # Step 1: Calculate compositional variation of the entire community.
     Green_otu_rel_sub = Green_mean_matrix[, sub_group$Species]
     
     x <- apply(combn(ncol(Green_otu_rel_sub), 2), 2, function(x) sum(abs(Green_otu_rel_sub[,x[1]] - Green_otu_rel_sub[,x[2]]))/2 )
@@ -118,7 +128,7 @@ for (i in Year) {
     Green_BC_full <- data.frame(x, x_names)
     
     
-    ## Step 2. 共有类群的样本间差异
+    # Step 2: Calculate compositional variation of the common community.
     Green_common_matrix <- Green_otu_rel_sub[common_ASVs, ]
     x <- apply(combn(ncol(Green_common_matrix), 2), 2, function(x) sum(abs(Green_common_matrix[, x[1]] - Green_common_matrix[, x[2]]))/2)
     x_names <- apply(combn(ncol(Green_common_matrix), 2), 2, function(x) paste(colnames(Green_common_matrix)[x], collapse=' - '))
@@ -136,7 +146,7 @@ for (i in Year) {
     diff_BC_Green$Species_1 <- sapply(split_names, function(x) x[1])
     diff_BC_Green$Species_2 <- sapply(split_names, function(x) x[2])
     
-    # 直接添加物种信息
+    # add species information
     diff_BC_Green$Sample_ID1 <- sub_group$Sample_ID[match(diff_BC_Green$Species_1, sub_group$Species)]
     diff_BC_Green$Sample_ID2 <- sub_group$Sample_ID[match(diff_BC_Green$Species_2, sub_group$Species)]
     
@@ -144,7 +154,6 @@ for (i in Year) {
     colnames(diff_BC_Green)[2] = "Species_pair"
     
     # merge dataset
-    #colnames(diff_BC_Green) %in% colnames(diff_BC_Field)
     # reorder
     diff_BC_Green = diff_BC_Green[,colnames(diff_BC_Field)]
     
@@ -210,5 +219,3 @@ ggplot(diff_BC_merge_all, aes(x = Site, y = diff_BC*100, fill = Years, color = Y
         plot.tag = element_text(size = 14, face = "bold")) +
   labs(y = 'Shared taxa contributions\nto fungal community dissimilarity (%)', x = NULL, tag = "b") +
   geom_segment(aes(x = 0, xend = 0, y = 1, yend = 3), color = "black")
-
-
