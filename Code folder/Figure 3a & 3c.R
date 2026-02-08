@@ -195,8 +195,11 @@ mod = lm(env_Effect_on_fungi ~ Origin * Year * Site, data = with_bc_data)
 anova(mod)
 
 t.test(with_bc_data$env_Effect_on_fungi, mu = 0)
-t.test(subset(with_bc_data, Origin == "Native")$ env_Effect_on_fungi,
-       subset(with_bc_data, Origin == "Exotic")$ env_Effect_on_fungi)
+# t = 19.16, p < 0.001
+t.test(subset(with_bc_data, Origin == "Native")$env_Effect_on_fungi, mu = 0)
+t.test(subset(with_bc_data, Origin == "Exotic")$env_Effect_on_fungi, mu = 0)
+t.test(subset(with_bc_data, Origin == "Native")$env_Effect_on_fungi,
+       subset(with_bc_data, Origin == "Exotic")$env_Effect_on_fungi)
 
 # Loading traits database
 Field_group <- read.xlsx("Field_data_group.xlsx", sheet = "field_group", rowNames = T, colNames = T)
@@ -291,16 +294,14 @@ for(i in Year){
   }
 }
 
-head(Field_traits_dist_add)
-
 # plant richness per site per year
 plant_SR = Field_group %>% group_by(Origin, Tave) %>%
   summarise(plant_sr = n())
 
 # merge all information
 with_bc_data$Year = as.factor(with_bc_data$Year)
-Field_traits_dist_add$Year = as.factor(Field_traits_dist_add$Year)
-with_bc_data_add <- with_bc_data %>% left_join(Field_traits_dist_add)
+Field_traits_dist_all$Year = as.factor(Field_traits_dist_all$Year)
+with_bc_data_add <- with_bc_data %>% left_join(Field_traits_dist_all)
 
 # averaging the data per site per year
 with_bc_data_add_mean = with_bc_data_add %>%
@@ -371,10 +372,9 @@ ggplot(data = with_bc_data_add_mean, aes(x = Tave, y = mean_env, fill = Origin, 
        y = bquote(atop("Environmental effects", 
                        Ln ~ "(" ~ frac(Pairwise~dissimilarity["estimated in the field"], 
                                        Pairwise~dissimilarity["estimated in greenhouse"]) ~ ")")), tag = "a",
-       title = NULL) -> Figure_3a_right; Figure_3a_right
+       title = "Analyzed with all ASVs") -> Figure_3a_right; Figure_3a_right
 
 Rmisc::summarySE(with_bc_data_add, groupvars = "Origin", measurevar = "env_Effect_on_fungi")
-
 
 with_bc_data_add_mean_all = with_bc_data_add %>%
   group_by(Origin) %>% 
@@ -442,12 +442,12 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
                         mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
                         formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
                         label.y.npc = 0.98, label.x.npc = 0.95) + 
-  annotate("text", x = 17.5, y = 0.53, label = "Excluding Tai'an in 2021:", size = 4) + 
+  annotate("text", x = 17.8, y = 0.68, label = "Excluding Tai'an in 2021:", size = 4) + 
   ggpmisc::stat_poly_eq(data = with_bc_data_mean_merg, 
                         mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
                         formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
                         label.y.npc = 0.92, label.x.npc = 0.95) + 
-  annotate("text", x = 18.5, y = 0.479, label = "All sites:", size = 4) + 
+  annotate("text", x = 18.95, y = 0.61, label = "All sites:", size = 4) + 
   theme_bw() + mytheme + 
   theme(legend.position = c(0.80,0.25),
         panel.grid=element_blank(), 
@@ -462,6 +462,7 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
        title = NULL) -> Figure_3c; Figure_3c
 
 
-# 11.26 x 5.11
+# 11.26 x 5.11 
 Figure_3a/Figure_3c
+
 
