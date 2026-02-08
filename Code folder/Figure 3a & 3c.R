@@ -324,15 +324,18 @@ with_bc_data_add_mean$plant_sr <- as.numeric(with_bc_data_add_mean$plant_sr)
 # 
 with_bc_data_add_mean2 = with_bc_data_add_mean
 with_bc_data_add_mean2 = with_bc_data_add_mean2 %>% left_join(unique(Field_group[,c("Tave", "Site_pool")]))
+
+# relationship between site-level fungal richness and environmental effects
 mod0 <- lm(mean_env ~ Origin*Site_pool, data = with_bc_data_add_mean2)
 anova(mod0)
 
-# 计算站点水平下真菌richness 均值
+# Calculate the mean fungal richness at the site level.
 fungal_richness_site = Field_group %>% group_by(Tave, Origin) %>% 
   summarise(site_SR = mean(Field_SR))
 fungal_richness_site$Origin[fungal_richness_site$Origin == "Exotic"] <- "Alien"
 with_bc_data_add_mean2 = with_bc_data_add_mean2 %>% left_join(fungal_richness_site)
 
+# relationship between mean fungal richness per site per year and environmental effects
 mod0 <- lm(mean_env ~ Origin*site_SR, data = with_bc_data_add_mean2)
 anova(mod0)
 
@@ -462,7 +465,7 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
        title = NULL) -> Figure_3c; Figure_3c
 
 
-# 11.26 x 5.11 
+# 11.26 x 5.11
 Figure_3a/Figure_3c
 
 
