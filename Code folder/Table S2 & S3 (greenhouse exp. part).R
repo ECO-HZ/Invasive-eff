@@ -20,10 +20,11 @@ green_otu <- green_otu[ ,Green_group$Sample_ID]
 Green_group <- Green_group[colnames(green_otu), ]
 #rownames(t(green_otu)) %in% rownames(Green_group)
 
+colnames(tax_default)[1:5]
 ## Tax INFORMATION
-tax_default <- read.xlsx("Greenhouse_fungi_Flattening.xlsx", sheet = "ASV_tax", rowNames = F, colNames = T)[,1:3]
+tax_default <- read.xlsx("Greenhouse_ASVs_raw_data.xlsx", sheet = "raw_ASVs", rowNames = F, colNames = T)[,c("ASV_name", "ASV_ID", "taxonomy_all")]
 #head(tax_default)
-rownames(tax_default)  <- tax_default$ASV_name
+rownames(tax_default) <- tax_default$ASV_ID
 tax_default <- tax_default[colnames(t(green_otu)),]
 
 OTU_tax <- tax_default %>% tidyr::separate(col = taxonomy_all, 
@@ -39,9 +40,9 @@ OTU_tax2 <- OTU_tax %>% left_join(FungalTraits[,c("GENUS","primary_lifestyle")],
 head(OTU_tax2)
 
 ####  |Plant Pathogen|
-Pathogen_id1 <- subset(OTU_tax2, primary_lifestyle == "plant_pathogen")$ASV_name
+Pathogen_id1 <- subset(OTU_tax2, primary_lifestyle == "plant_pathogen")$ASV_ID
 #### Fusarium
-Pathogen_id2 <- subset(OTU_tax, Genus == "g__Fusarium")$ASV_name
+Pathogen_id2 <- subset(OTU_tax, Genus == "g__Fusarium")$ASV_ID
 ### |Plant Pathogen| & Fusarium
 Pathogens <- as.data.frame(unique(c(Pathogen_id1, Pathogen_id2)))
 Pathogens$guild <- "Plant Pathogen"; colnames(Pathogens)[1] <- "ASV_name"
@@ -50,18 +51,17 @@ Green_pathogens = Pathogens
 
 ############################ Arbuscular Mycorrhizal ############################
 ####  Arbuscular Mycorrhizal
-AMF_id1 <- subset(OTU_tax2, primary_lifestyle == "arbuscular_mycorrhizal")$ASV_name; length(AMF_id1)
+AMF_id1 <- subset(OTU_tax2, primary_lifestyle == "arbuscular_mycorrhizal")$ASV_ID; length(AMF_id1)
 #### Glomeromycota
-AMF_id2 <- subset(OTU_tax, Phylum == "p__Glomeromycota")$ASV_name; length(AMF_id2)
+AMF_id2 <- subset(OTU_tax, Phylum == "p__Glomeromycota")$ASV_ID; length(AMF_id2)
 ### Arbuscular Mycorrhizal & Glomeromycota
 AMF <- as.data.frame(unique(c(AMF_id1, AMF_id2)))
 AMF$guild <- "Arbuscular Mycorrhizal"; colnames(AMF)[1] <- "ASV_name"
 
 ############################### saprophytic fungi ##############################
 Saprotroph_type = c("soil_saprotroph","litter_saprotroph","unspecified_saprotroph","wood_saprotroph","nectar/tap_saprotroph","pollen_saprotroph")
-Saprotroph <- as.data.frame(subset(OTU_tax2, primary_lifestyle %in% Saprotroph_type)$ASV_name)
+Saprotroph <- as.data.frame(subset(OTU_tax2, primary_lifestyle %in% Saprotroph_type)$ASV_ID)
 Saprotroph$guild <- "Saprotroph"; colnames(Saprotroph)[1] <- "ASV_name"
-
 
 ##################### community richness of overall fungi ######################
 Green_relative <- decostand(green_otu, method = "total", MARGIN = 2)
@@ -97,9 +97,8 @@ Overall_SR_mod_anova$df <- paste0(Overall_SR_mod_anova$Df, ",", Overall_SR_mod_a
 Overall_SR_mod_anova$Predictors <- c("Origin", "Species", "Residuals")
 Overall_SR_mod_anova <- Overall_SR_mod_anova[, c(7,6,2:5)] # Reorder
 rownames(Overall_SR_mod_anova) <- NULL
-print(Overall_SR_mod_anova) 
 Overall_SR_mod_anova$explan_var <- round((Overall_SR_mod_anova$`Sum Sq`/sum(Overall_SR_mod_anova$`Sum Sq`))*100, 3)
-
+print(Overall_SR_mod_anova) 
 
 ################## community composition of pathogenic fungi ###################
 Path_Green_hel_no <- as.data.frame(t(green_otu))[ ,Pathogens$ASV_name]
@@ -216,5 +215,3 @@ Sap_SR_mod_anova <- Sap_SR_mod_anova[, c(7,6,2:5)] # Reorder
 rownames(Sap_SR_mod_anova) <- NULL
 Sap_SR_mod_anova$explan_var <- round((Sap_SR_mod_anova$`Sum Sq`/sum(Sap_SR_mod_anova$`Sum Sq`))*100, 3)
 print(Sap_SR_mod_anova) 
-
-
