@@ -219,3 +219,5 @@ ggplot(diff_BC_merge_all, aes(x = Site, y = diff_BC*100, fill = Years, color = Y
         plot.tag = element_text(size = 14, face = "bold")) +
   labs(y = 'Shared taxa contributions\nto fungal community dissimilarity (%)', x = NULL, tag = "b") +
   geom_segment(aes(x = 0, xend = 0, y = 1, yend = 3), color = "black")
+
+
