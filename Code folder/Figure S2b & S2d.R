@@ -229,71 +229,6 @@ Field_BC_data_all$Year = factor(Field_BC_data_all$Year, levels = rev(c("2018", "
 # reorder by origin and site
 Field_pair_BC_sorted <- Field_BC_data_all %>% arrange(Site, Year, Origin)
 
-# Student’s t-tests for total database in field survey
-t.test(Field_pair_BC_sorted$Field_dist ~ Field_pair_BC_sorted$Origin)
-(0.7951722 - 0.7759438)/0.7759438 # decreased 2.5% 
-
-# plot data for total database
-ggplot(Field_pair_BC_sorted, aes(x = Field_dist, y = "Overall", fill = Origin, color = Origin)) +
-  geom_density_ridges(rel_min_height = 0.01, scale = 0.3,alpha = 0.5, linewidth = 0.7,
-                      quantile_lines = TRUE, quantile_fun = mean) +
-  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01),limits = c(0, 1),
-                     breaks = seq(0, 1, by = 0.25),expand = expansion(mult = c(0, 0.1))) +
-  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
-  theme_minimal() +
-  theme(plot.title = element_textbox(size = 14, color = "black", fill = "grey90",
-                                     box.color = "grey50", padding = margin(5, 5, 5, 5), 
-                                     margin = margin(b = 0),halign = 0.5, width = grid::unit(1, "npc")),
-        legend.position = "none", legend.title = element_blank(),
-        legend.key = element_blank(), legend.text = element_text(size = 10),
-        plot.tag = element_text(size = 16, face = "bold"),
-        axis.ticks.y = element_line(color = 'black'),
-        axis.title = element_text(colour = 'black', size = 14),
-        axis.text.y = element_text(colour = 'black', size = 12),
-        axis.text.x = element_blank(),
-        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
-        strip.placement = "outside",
-        strip.text.y = element_text(size = 12, colour = "black"),
-        panel.spacing = unit(0, "lines")) +
-  labs(y = NULL,x = NULL, title = "Field survey", tag = "a") -> p1; p1
-
-
-# plot data per site per year
-print(subset(Field_t_test_result_BC, p_value <= 0.05))
-
-ggplot(Field_pair_BC_sorted, aes(x = Field_dist, y = Year, fill = Origin, color = Origin)) +
-  geom_density_ridges(rel_min_height = 0.01, scale = 0.9, alpha = 0.5, linewidth = 0.7,
-                      quantile_lines = TRUE, quantile_fun = mean) +
-  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01), limits = c(0,1), 
-                     breaks = seq(0, 1, by = 0.25), expand = expansion(mult = c(0, 0.1))) +
-  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
-  ggh4x::facet_grid2(Site ~ ., #switch = "y", 
-                     strip = ggh4x::strip_themed(background_y = ggh4x::elem_list_rect(fill = site_colors))) +
-  theme_minimal() +
-  theme(legend.position = "none", 
-        legend.title = element_blank(),
-        legend.key = element_blank(),
-        legend.text = element_text(size = 10),
-        axis.line.x = element_line(color = 'black'),
-        axis.ticks = element_line(color = 'black'),
-        axis.title.x = element_text(colour = 'black', size = 14),
-        axis.title.y = element_text(colour = 'black', size = 14),
-        axis.text = element_text(colour = 'black', size = 12),
-        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
-        strip.placement = "outside",
-        strip.text.y = element_text(size = 12, colour = "black"),
-        panel.spacing = unit(0, "lines")) +
-  labs(x = 'Pairwise Bray–Curtis dissimilarities', y = NULL) +
-  geom_segment(aes(x = 0, xend = 0, y = 1, yend = 3), color = "black") -> p2; p2
-
-## 5.83 x 11.00
-mian_Fig_2_left <- p2 %>% insert_top(p1,height = 0.1) %>% as.ggplot() 
-mian_Fig_2_left # 
-
 
 ############################## Greenhouse experiment ###########################
 Green_BC_data_all$Site <- factor(Green_BC_data_all$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
@@ -305,104 +240,6 @@ Green_BC_data_all$Year <- factor(Green_BC_data_all$Year, levels = rev(c("2018", 
 
 # reorder by origin and site
 Green_pair_BC_sorted <- Green_BC_data_all %>% arrange(Site, Year, Origin)
-
-## Student’s t-tests for total database in greenhouse experiment
-Green_fungi_relative <- decostand(Green_raw_abun, method = "total", MARGIN = 2)
-# colSums(Green_fungi_relative)
-Green_Bray_dist_rela <- vegdist(t(Green_fungi_relative), method = 'bray')
-
-native_sample <- subset(Green_group, Origin == "Native")$Sample_ID
-exotic_sample <- subset(Green_group, Origin == "Exotic")$Sample_ID
-
-# native
-Green_Bray_nat <- as.matrix(Green_Bray_dist_rela)[native_sample, native_sample]
-# dim(Green_Bray_nat)
-Green_lower_tri_mask <- lower.tri(Green_Bray_nat, diag = FALSE)
-Green_Native_matrix_lower <- Green_Bray_nat
-Green_Native_matrix_lower[!Green_lower_tri_mask] <- NA
-Green_Native_BC_long <- reshape2::melt(Green_Native_matrix_lower, na.rm = TRUE, 
-                                       varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Green_dist")
-Green_Native_BC_long$Origin <- "Native"
-
-# Alien
-Green_Bray_exo <- as.matrix(Green_Bray_dist_rela)[exotic_sample, exotic_sample]
-# dim(Green_Bray_exo)
-Green_lower_tri_mask <- lower.tri(Green_Bray_exo, diag = FALSE)
-Green_Exotic_matrix_lower <- Green_Bray_exo
-Green_Exotic_matrix_lower[!Green_lower_tri_mask] <- NA
-Green_Exotic_BC_long <- reshape2::melt(Green_Exotic_matrix_lower, na.rm = TRUE, 
-                                       varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Green_dist")
-Green_Exotic_BC_long$Origin <- "Alien"
-
-# merge data
-Green_Pairwise_BC_data <- rbind(Green_Native_BC_long, Green_Exotic_BC_long)
-Green_Pairwise_BC_data$Origin <- factor(Green_Pairwise_BC_data$Origin, levels = c("Native","Alien"))
-t.test(Green_dist ~ Origin,Green_Pairwise_BC_data) # t = 0.4151, p = 0.6781
-
-# plot data for total database
-ggplot(Green_Pairwise_BC_data, aes(x = Green_dist, y = "Overall", fill = Origin, color = Origin)) +
-  geom_density_ridges(rel_min_height = 0.01, scale = 0.3,alpha = 0.5, linewidth = 0.7,
-                      quantile_lines = TRUE, quantile_fun = mean) +
-  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01),limits = c(0, 1),
-                     breaks = seq(0, 1, by = 0.25),expand = expansion(mult = c(0, 0.1))) +
-  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
-  theme_minimal() +
-  theme(plot.title = element_textbox(size = 14, color = "black", fill = "grey90",
-                                     box.color = "grey50", padding = margin(5, 5, 5, 5), 
-                                     margin = margin(b = 0),halign = 0.5, width = grid::unit(1, "npc")),
-        legend.position = "none", legend.title = element_blank(),
-        legend.key = element_blank(), legend.text = element_text(size = 10),
-        plot.tag = element_text(size = 16, face = "bold"),
-        axis.ticks.y = element_line(color = 'black'),
-        axis.title = element_text(colour = 'black', size = 14),
-        axis.text.y = element_text(colour = 'black', size = 12),
-        axis.text.x = element_blank(),
-        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
-        strip.placement = "outside",
-        strip.text.y = element_text(size = 12, colour = "black"),
-        panel.spacing = unit(0, "lines")) +
-  labs(y = NULL,x = NULL, title = "Greenhouse experiment") -> p3; p3
-
-# plot data per site per year
-print(subset(Green_t_test_result_BC, p_value <= 0.05))
-
-t.test(Green_dist ~ Origin, subset(Green_pair_BC_sorted, Site == "Tai'an" & Year == "2018"))
-
-ggplot(Green_pair_BC_sorted, aes(x = Green_dist, y = Year, fill = Origin, color = Origin)) +
-  geom_density_ridges(rel_min_height = 0.01, scale = 0.9, alpha = 0.5, linewidth = 0.7,
-                      quantile_lines = TRUE, quantile_fun = mean) +
-  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01), limits = c(0,1), 
-                     breaks = seq(0, 1, by = 0.25), expand = expansion(mult = c(0, 0.1))) +
-  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
-  ggh4x::facet_grid2(Site ~ ., #switch = "y", 
-                     strip = ggh4x::strip_themed(background_y = ggh4x::elem_list_rect(fill = site_colors))) +
-  theme_minimal() +
-  theme(legend.position = "none", 
-        legend.title = element_blank(),
-        legend.key = element_blank(),
-        legend.text = element_text(size = 10),
-        axis.line.x = element_line(color = 'black'),
-        axis.ticks = element_line(color = 'black'),
-        axis.title.x = element_text(colour = 'black', size = 14),
-        axis.title.y = element_text(colour = 'black', size = 14),
-        axis.text = element_text(colour = 'black', size = 12),
-        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
-        strip.placement = "outside",
-        strip.text.y = element_text(size = 12, colour = "black"),
-        panel.spacing = unit(0, "lines")) +
-  labs(x = 'Pairwise Bray–Curtis dissimilarities', y = NULL) -> p4; p4
-
-
-## 5.83 x 11.00
-mian_Fig_2_right <- p4 %>% insert_top(p3,height = 0.1) %>% as.ggplot() 
-mian_Fig_2_right 
-
-mian_Fig_2_left|mian_Fig_2_right -> mian_Fig_2a
-
 
 ############################# Figure S2b & S2d #################################
 # The relationships between the mean pairwise fungal compositional dissimilarity 
@@ -442,7 +279,6 @@ for (i in Year) {
 all_t_test_result$sig = ifelse(all_t_test_result$p_value <= 0.05, 1, 0)
 print(subset(all_t_test_result, sig == 1))
 
-colnames(β_Bray_Native)
 β_Bray_Native = pair_BC_sorted_merge_nat %>%
   group_by(Year, Site) %>%
   summarise(
@@ -559,4 +395,3 @@ ggplot()+
 
 # 
 Figure_S2b/Figure_S2d
-
