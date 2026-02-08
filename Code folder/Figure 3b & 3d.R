@@ -109,7 +109,6 @@ Green_input_dist = Green_Bray_dist_mean
 # create null database for save data
 Field_BC_data_all = NULL
 Green_BC_data_all = NULL
-Field_BC_data_all_SR = NULL
 
 Year = unique(Field_group$Year)
 Site = unique(Field_group$Site)
@@ -159,40 +158,6 @@ for(i in Year){
     ## merge data sets
     Field_BC_data_all = rbind(Field_BC_data_all, Field_Pairwise_BC_data)
     
-    ########################### 真菌richness欧式距离 ###########################
-    ## Native
-    Field_Native_matrix_SR <- as.matrix(Fungi_SR_dist)[Native_sample, Native_sample]
-    dim(Field_Native_matrix_SR)
-    Field_lower_tri_mask_SR <- lower.tri(Field_Native_matrix_SR, diag = FALSE)
-    Field_Native_matrix_lower_SR <- Field_Native_matrix_SR
-    Field_Native_matrix_lower_SR[!Field_lower_tri_mask_SR] <- NA
-    Field_Native_BC_long_SR <- reshape2::melt(Field_Native_matrix_lower_SR, na.rm = TRUE, 
-                                              varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Field_SR_dist")
-    Field_Native_BC_long_SR$Origin <- "Native"
-    
-    ## Exotic
-    Field_Exotic_matrix_SR <- as.matrix(Fungi_SR_dist)[Exotic_sample, Exotic_sample]
-    dim(Field_Exotic_matrix_SR)
-    Field_lower_tri_mask_SR <- lower.tri(Field_Exotic_matrix_SR, diag = FALSE)
-    Field_Exotic_matrix_lower_SR <- Field_Exotic_matrix_SR
-    Field_Exotic_matrix_lower_SR[!Field_lower_tri_mask_SR] <- NA
-    Field_Exotic_BC_long_SR <- reshape2::melt(Field_Exotic_matrix_lower_SR, na.rm = TRUE, 
-                                              varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Field_SR_dist")
-    Field_Exotic_BC_long_SR$Origin <- "Exotic"
-    
-    ## merge data sets
-    Field_Pairwise_BC_data_SR <- rbind(Field_Native_BC_long_SR, Field_Exotic_BC_long_SR)
-    
-    ## adding species Latin names
-    Sample_ID1 = select_group[,c("Sample_ID", "Species")]; colnames(Sample_ID1) = c("Sample_ID1", "Species1")
-    Sample_ID2 = select_group[,c("Sample_ID", "Species")]; colnames(Sample_ID2) = c("Sample_ID2", "Species2")
-    Field_Pairwise_BC_data_SR = Field_Pairwise_BC_data_SR %>% left_join(Sample_ID1) %>% left_join(Sample_ID2)
-    
-    Field_Pairwise_BC_data_SR$Year <- i; Field_Pairwise_BC_data_SR$Site <- ii
-    
-    ## merge data sets
-    Field_BC_data_all_SR = rbind(Field_BC_data_all_SR, Field_Pairwise_BC_data_SR)
-    
     ########################## Greenhouse experiment ###########################
     ## Native
     Green_Native_matrix <- as.matrix(Green_input_dist)[Native_sp, Native_sp]
@@ -226,7 +191,7 @@ for(i in Year){
 
 # Compositional dissimilarity in rhizosphere fungal communities among natives or 
 # aliens co-occurred at the same site and time in the field and greenhouse exp.
-with_bc_data <- Field_BC_data_all %>% left_join(Green_BC_data_all) %>% left_join(Field_BC_data_all_SR)
+with_bc_data <- Field_BC_data_all %>% left_join(Green_BC_data_all)
 colnames(with_bc_data)
 
 # Add temperature information
@@ -242,8 +207,10 @@ mod = lm(env_Effect_on_fungi ~ Origin * Year * Site, data = with_bc_data)
 anova(mod)
 
 t.test(with_bc_data$env_Effect_on_fungi, mu = 0)
-t.test(subset(with_bc_data, Origin == "Native")$ env_Effect_on_fungi,
-       subset(with_bc_data, Origin == "Exotic")$ env_Effect_on_fungi)
+t.test(subset(with_bc_data, Origin == "Native")$env_Effect_on_fungi, mu = 0)
+t.test(subset(with_bc_data, Origin == "Exotic")$env_Effect_on_fungi, mu = 0)
+t.test(subset(with_bc_data, Origin == "Native")$env_Effect_on_fungi,
+       subset(with_bc_data, Origin == "Exotic")$env_Effect_on_fungi)
 
 
 # Loading traits database
@@ -339,7 +306,6 @@ for(i in Year){
   }
 }
 
-head(Field_traits_dist_add)
 
 # plant richness per site per year
 plant_SR = Field_group %>% group_by(Origin, Tave) %>%
@@ -347,8 +313,8 @@ plant_SR = Field_group %>% group_by(Origin, Tave) %>%
 
 # merge all information
 with_bc_data$Year = as.factor(with_bc_data$Year)
-str(with_bc_data)
-with_bc_data_add <- with_bc_data %>% left_join(Field_traits_dist_add)
+Field_traits_dist_all$Year = as.factor(Field_traits_dist_all$Year)
+with_bc_data_add <- with_bc_data %>% left_join(Field_traits_dist_all)
 colnames(with_bc_data_add)
 
 # averaging the data per site per year
@@ -360,8 +326,7 @@ with_bc_data_add_mean = with_bc_data_add %>%
             ci_lower = mean_env - 1.96 * se_env,                     
             ci_upper = mean_env + 1.96 * se_env,                       
             mean_traits = mean(all_traits),
-            mean_phylo = mean(Phylo),
-            mean_Field_SR_dist = mean(Field_SR_dist)) %>%
+            mean_phylo = mean(Phylo)) %>%
   left_join(plant_SR) %>% as.data.frame()
 # str(with_bc_data_add_mean)
 
@@ -419,7 +384,7 @@ ggplot(data = with_bc_data_add_mean, aes(x = Tave, y = mean_env, fill = Origin, 
                        Ln ~ "(" ~ frac(Pairwise~dissimilarity["estimated in the field"], 
                                        Pairwise~dissimilarity["estimated in greenhouse"]) ~ ")")), 
        tag = "b",
-       title = NULL) -> Figure_3b_right; Figure_3b_right
+       title = "Analyzed with only the 1,763 shared ASVs") -> Figure_3b_right; Figure_3b_right
 
 
 # 
@@ -488,12 +453,12 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
                         mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
                         formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
                         label.y.npc = 0.98, label.x.npc = 0.95) + 
-  annotate("text", x = 17.5, y = 0.53, label = "Excluding Tai'an in 2021:", size = 4) + 
+  annotate("text", x = 18.8, y = 0.68, label = "Excluding Tai'an in 2021:", size = 4) + 
   ggpmisc::stat_poly_eq(data = with_bc_data_mean_merg, # poly(x, 2)
                         mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
-                        formula = y ~ poly(x, 2), parse = TRUE, size = 4, rr.digits = 3,
+                        formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
                         label.y.npc = 0.92, label.x.npc = 0.95) + 
-  annotate("text", x = 18.5, y = 0.479, label = "All sites:", size = 4) + 
+  annotate("text", x = 19.75, y = 0.61, label = "All sites:", size = 4) + 
   theme_bw() + mytheme + 
   theme(legend.position = c(0.80,0.25),
         panel.grid=element_blank(), 
@@ -509,5 +474,4 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
 
 # 11.26 x 5.11
 Figure_3b/Figure_3d
-
 
