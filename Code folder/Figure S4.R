@@ -43,7 +43,7 @@ title(main = "Greenhouse experiment", xlab = "Number of sequences", ylab = "Numb
 ################################################################################
 
 # Loading the R packages
-library(iNEXT)
+library(iNEXT) # version 3.0.1
 
 ################################# Field survey ################################# 
 # Soil sample grouping information
