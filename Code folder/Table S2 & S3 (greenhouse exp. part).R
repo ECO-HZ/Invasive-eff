@@ -20,7 +20,6 @@ green_otu <- green_otu[ ,Green_group$Sample_ID]
 Green_group <- Green_group[colnames(green_otu), ]
 #rownames(t(green_otu)) %in% rownames(Green_group)
 
-colnames(tax_default)[1:5]
 ## Tax INFORMATION
 tax_default <- read.xlsx("Greenhouse_ASVs_raw_data.xlsx", sheet = "raw_ASVs", rowNames = F, colNames = T)[,c("ASV_name", "ASV_ID", "taxonomy_all")]
 #head(tax_default)
@@ -142,7 +141,6 @@ print(Path_SR_mod_anova)
 AM_Green_hel_no <- as.data.frame(t(green_otu))[ ,AMF$ASV_name]
 AM_Green_hel_no_add  <- AM_Green_hel_no
 AM_Green_hel_no_add[rowSums(AM_Green_hel_no_add) == 0, ] <- 1e-6
-
 AM_Green_rela <- as.data.frame(decostand(t(AM_Green_hel_no_add), method = "total", MARGIN = 2))
 # colSums(AM_Green_rela)
 
@@ -215,3 +213,5 @@ Sap_SR_mod_anova <- Sap_SR_mod_anova[, c(7,6,2:5)] # Reorder
 rownames(Sap_SR_mod_anova) <- NULL
 Sap_SR_mod_anova$explan_var <- round((Sap_SR_mod_anova$`Sum Sq`/sum(Sap_SR_mod_anova$`Sum Sq`))*100, 3)
 print(Sap_SR_mod_anova) 
+
+
