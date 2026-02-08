@@ -85,7 +85,7 @@ The names of R-scripts correspond to the statistical analysis and visualization 
 
 **Data-specific onformation for:** ***ASV_tax_information.xlsx***
 
-    * Taxonomic information of fungal ASVs in rhizosphere samples during field investigation.
+    * Taxonomic information of fungal ASVs in rhizosphere samples during field survey.
   
 **Data-specific onformation for:** ***Greenhouse_ASVs_row_data.xlsx***
 
