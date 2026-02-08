@@ -38,7 +38,7 @@ Field_group$Year <- as.factor(Field_group$Year)
 Field_group$Site <- factor(Field_group$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
 Field_group$Origin <- factor(Field_group$Origin, levels = c("Native","Exotic"))
 
-# 创建偏移量映射
+# Create an offset mapping
 offset_mapping <- c("2018" = -0.2, "2020" = 0, "2021" = 0.2)
 
 ## Soil total nitrogen content
@@ -64,9 +64,9 @@ ggplot() +
               method = "lm", formula = y ~ x, se = F, linetype = 1, size = 1.5) + 
   ggpmisc::stat_poly_eq(data = data_Soil_N,  mapping = aes(x = Latitude, y = Soil_N, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
                         formula = y ~ x, parse = TRUE, size = 4, color = "black", label.y.npc = "center") + 
-  theme_bw() + mytheme + 
+  theme_bw() + mytheme + theme(legend.position = c(0.8,0.8)) + 
   scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
-  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
+  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A"), name = "Year") +
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
   labs(x = NULL, y = "Soil total nitrogen content (%, sqrt)", tag = "a") -> p1; p1
 
@@ -128,7 +128,7 @@ ggplot() +
   scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
   scale_linetype_manual(values = c(2,1,1)) + 
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
-  labs(x = NULL, y = "Soil pH", tag = "c") -> p3; p3
+  labs(x = "Latitude (North degrees)", y = "Soil pH", tag = "c") -> p3; p3
 
 
 ## annual average temperature 
@@ -156,7 +156,7 @@ ggplot() +
   scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
   scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
-  labs(x = NULL, y = expression("Annual mean temperature ( " * degree * "C)"), tag = "d") -> p4; p4
+  labs(x = "Latitude (North degrees)", y = expression("Annual mean temperature ( " * degree * "C)"), tag = "d") -> p4; p4
 
 
 ## annual precipitation
@@ -186,9 +186,7 @@ ggplot() +
   #scale_x_continuous(expand = expansion(mult = c(0.1, 0.1))) +
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
   #scale_x_continuous(breaks=c(23.1,25.2,27.9,30.5,34.6,36.2)) + 
-  labs(x = NULL, y = expression("Annual precipitation (mm)"), tag = "e") -> p5; p5
+  labs(x = "Latitude (North degrees)", y = expression("Annual precipitation (mm)"), tag = "e") -> p5; p5
 
 
 (p1/p4)|(p2/p5)|(p3/p5)
-
-
