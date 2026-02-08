@@ -45,10 +45,6 @@ mean_ci_196 <- function(x) {
   c(y = m, ymin = m - 1.96 * se, ymax = m + 1.96 * se)
 }
 
-# common ASVS
-common_ASVs = intersect(rownames(Field_raw_abun), rownames(Green_raw_abun))
-length(common_ASVs)
-
 ####################### Loading field survey database ##########################
 # Soil sample grouping information in field survey
 Field_group = read.xlsx("Field_data_group.xlsx", sheet = "field_group", rowNames = T, colNames = T)
@@ -75,10 +71,6 @@ Field_fungi_relative <- decostand(Field_raw_abun, method = "total", MARGIN = 2)
 # colSums(Field_fungi_relative)
 Field_Bray_dist_rela <- vegdist(t(Field_fungi_relative), method = 'bray')
 
-# common_ASV DIST IN FIELD
-Field_Bray_dist_rela <- vegdist(t(Field_fungi_relative[common_ASVs, ]), method = 'bray')
-
-
 ################### Loading greenhouse experiment database #####################
 # Soil sample grouping information in greenhouse exp.
 Green_group <- read.xlsx("Greenhouse_data_group.xlsx", sheet = "sample_group", colNames = T, rowNames = T)
@@ -96,9 +88,15 @@ Green_fungi_relative <- decostand(Green_raw_abun, method = "total", MARGIN = 2)
 Green_Bray_dist_rela <- vegdist(t(Green_fungi_relative), method = 'bray')
 # save(Green_Bray_dist_rela, file = "Green_Bray_dist_rela.RData")
 
-# common_ASV DIST IN GREENHOUSE
-Green_Bray_dist_rela <- vegdist(t(Green_fungi_relative[common_ASVs, ]), method = 'bray')
+# common ASVS
+#common_ASVs = intersect(rownames(Field_raw_abun), rownames(Green_raw_abun))
+#length(common_ASVs)
 
+# common_ASV DIST IN FIELD
+#Field_Bray_dist_rela <- vegdist(t(Field_fungi_relative[common_ASVs, ]), method = 'bray')
+
+# common_ASV DIST IN GREENHOUSE
+#Green_Bray_dist_rela <- vegdist(t(Green_fungi_relative[common_ASVs, ]), method = 'bray')
 
 # note:
 # To match the rhizosphere fungal data with the corresponding species from the 
@@ -217,7 +215,7 @@ ggplot(data = Field_BC_data_all, aes(x = all_traits, y = Field_dist)) +
        y = "Pairwise Bray–Curtis dissimilarities\nestimated in the field", tag = "a") -> p1; p1
 
 ################################# Figure 4b ####################################
-ggplot(data = with_bc_data_add, aes(x = Phylo, y = Field_dist)) + 
+ggplot(data = Field_BC_data_all, aes(x = Phylo, y = Field_dist)) + 
   geom_point(size = 3, pch = 21, color = "black", fill = "grey") + 
   geom_smooth(method = "lm", se = F, formula = y ~ x, linetype = 2,linewidth=0.5, color = "black") +
   ggpmisc::stat_poly_eq(aes(label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
@@ -673,3 +671,6 @@ Figure_4g_right <- Figure_4g_right + scale_y_continuous(limits = range_y, breaks
 
 # 
 Figure_4g_left + Figure_4g_right + plot_layout(widths = c(0.25, 0.75)) -> Figure_4g; Figure_4g
+
+
+
