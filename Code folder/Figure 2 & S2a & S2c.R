@@ -325,7 +325,8 @@ Green_Exotic_BC_long$Origin <- "Alien"
 # merge data
 Green_Pairwise_BC_data <- rbind(Green_Native_BC_long, Green_Exotic_BC_long)
 Green_Pairwise_BC_data$Origin <- factor(Green_Pairwise_BC_data$Origin, levels = c("Native","Alien"))
-t.test(Green_dist ~ Origin,Green_Pairwise_BC_data) # t = 0.4151, p = 0.6781
+t.test(Green_dist ~ Origin,Green_Pairwise_BC_data) 
+# t = 0.4151, p = 0.6781
 
 # plot data for total database
 ggplot(Green_Pairwise_BC_data, aes(x = Green_dist, y = "Overall", fill = Origin, color = Origin)) +
