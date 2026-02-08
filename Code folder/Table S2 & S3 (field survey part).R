@@ -220,5 +220,3 @@ Sap_SR_mod_anova$Predictors <- c("Year", "Site", "Origin", "Species", "Year × S
 Sap_SR_mod_anova <- Sap_SR_mod_anova[c(1:7,9,10,8,11), c(7,6,2:5)] # Reorder
 rownames(Sap_SR_mod_anova) <- NULL
 print(Sap_SR_mod_anova) 
-
-
