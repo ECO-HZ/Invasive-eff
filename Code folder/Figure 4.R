@@ -429,7 +429,7 @@ print(output)
 # sequentially retaining the calculated cohesion index data.
 
 # Lading saved cohesion index data
-cohesion_data <- read.xlsx("cohesion_data.xlsx", colNames = T, rowNames = F)
+cohesion_data <- read.xlsx("cohesion_data.xlsx", sheet = "cohesion", colNames = T, rowNames = F)
 
 # add other group information
 Field_group2 = Field_group %>% left_join(cohesion_data)
