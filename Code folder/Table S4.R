@@ -127,6 +127,3 @@ Sap_perM_tab$Predictors <- c("Origin", "Temperature", "Precipitation", "Soil pH"
 Sap_perM_tab <- Sap_perM_tab[-c(12:13) ,c("Predictors", "df" ,"F", "R2", "Pr(>F)")] # Reorder
 rownames(Sap_perM_tab) <- NULL
 print(Sap_perM_tab)
-
-
-
