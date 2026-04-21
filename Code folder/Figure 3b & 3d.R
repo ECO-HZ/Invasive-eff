@@ -358,6 +358,11 @@ anova(mod2)
 mod3 <- lm(mean_env ~ Origin*mean_phylo, data = with_bc_data_add_mean)
 anova(mod3)
 
+mod_nat <- lm(mean_env ~ Tave, data = subset(with_bc_data_add_mean, Origin == "Native"))
+summary(mod_nat)
+
+mod_exo <- lm(mean_env ~ Tave, data = subset(with_bc_data_add_mean, Origin == "Alien"))
+summary(mod_exo)
 
 ################################# Figure 3b ####################################
 ggplot(data = with_bc_data_add_mean, aes(x = Tave, y = mean_env, fill = Origin, color = Origin, group = Origin)) + 
@@ -379,8 +384,8 @@ ggplot(data = with_bc_data_add_mean, aes(x = Tave, y = mean_env, fill = Origin, 
   scale_linetype_manual(values = c(2,2)) +
   geom_hline(yintercept = 0, linetype = 2, size = 0.5) +
   scale_y_continuous(expand = expansion(mult = c(0.25, 0.1))) + 
-  labs(x = "Annual mean temperature of sampling site (℃)",
-       y = bquote(atop("Environmental effects", 
+  labs(x =  expression("Annual mean temperature of sampling site ("*degree*C*")"),
+       y = bquote(atop("Environmental effect", 
                        Ln ~ "(" ~ frac(Pairwise~dissimilarity["estimated in the field"], 
                                        Pairwise~dissimilarity["estimated in greenhouse"]) ~ ")")), 
        tag = "b",
@@ -415,12 +420,7 @@ ggplot(data = with_bc_data_add_mean_all,
         axis.title = element_text(size = 13, color = "black"),
         axis.text = element_text(size = 11, color = "black"),
         plot.tag = element_text(size = 14, face = "bold")) + 
-  labs(x = NULL,
-       y = NULL,
-       #y = bquote(atop("Environmental effects", 
-       #                Ln ~ "(" ~ frac(Pairwise~dissimilarity["estimated in the field"], 
-       #                                 Pairwise~dissimilarity["estimated in greenhouse"]) ~ ")")),
-       title = NULL) + 
+  labs(x = NULL,y = NULL,title = NULL) + 
   scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) -> Figure_3b_left; Figure_3b_left
 
 
@@ -453,12 +453,12 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
                         mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
                         formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
                         label.y.npc = 0.98, label.x.npc = 0.95) + 
-  annotate("text", x = 18.8, y = 0.68, label = "Excluding Tai'an in 2021:", size = 4) + 
+  annotate("text", x = 17.8, y = 0.68, label = "Excluding Tai'an in 2021:", size = 4) + 
   ggpmisc::stat_poly_eq(data = with_bc_data_mean_merg, # poly(x, 2)
                         mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
                         formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
                         label.y.npc = 0.92, label.x.npc = 0.95) + 
-  annotate("text", x = 19.75, y = 0.61, label = "All sites:", size = 4) + 
+  annotate("text", x = 18.95, y = 0.615, label = "All sites:", size = 4) + 
   theme_bw() + mytheme + 
   theme(legend.position = c(0.80,0.25),
         panel.grid=element_blank(), 
@@ -468,10 +468,11 @@ ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) +
         plot.tag = element_text(size = 14, face = "bold")) + 
   scale_linetype_manual(values = c(1,2)) + 
   geom_hline(yintercept = 0, linetype = 2, size = 0.5) +
-  labs(x = "Annual mean temperature of sampling site (℃)",
-       y = "Difference in environmental effects\n(Natives - Aliens)", tag = "d",
+  labs(x = expression("Annual mean temperature of sampling site ("*degree*C*")"),
+       y = "Difference in environmental effect\n(Natives - Non-native)", tag = "d",
        title = NULL) -> Figure_3d; Figure_3d
 
 # 11.26 x 5.11
-Figure_3b/Figure_3d
+(Figure_3a/Figure_3c)|(Figure_3b/Figure_3d) -> Figure_3
 
+ggsave("Figure 3-0421.pdf", plot = Figure_3, width = 11.85, height = 10, units = "in", dpi = 300)
