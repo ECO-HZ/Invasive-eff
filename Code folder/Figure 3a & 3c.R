@@ -1,16 +1,17 @@
 ################################################################################
-############################## Figure 3a & 3c ##################################
+########################### Figure 2 & S2a & S2c ###############################
 ################################################################################
 
 # loading R packages
 library(openxlsx) # version 4.2.5.2
-library(dplyr) # version 1.1.1
 library(ggplot2) # version 3.5.2
 library(vegan) # version 2.6-4
+library(ggridges) # version 0.5.6
+library(ggh4x) # version 0.2.8
 library(ggtext) # version 0.1.2
-library(phytools) # version 2.1-1
-library(funrar) # version 1.5.0
-library(patchwork) # version 1.3.1
+library(dplyr) # version 1.1.1
+library(ggplotify) # version 0.1.2
+library(aplot) # version 0.2.2
 
 # Custom style
 mytheme = theme(
@@ -33,6 +34,8 @@ mytheme = theme(
     halign = 0.5, width = grid::unit(1, "npc")), #r = unit(3, "pt")     
   plot.tag = element_text(size = 16, face = "bold")) 
 
+site_colors <- c("Guangzhou" = "#0E4879", "Guilin" = "#3E91B7", "Changsha" = "#999999",
+                 "Wuhan" = "#CFBD9F", "Zhengzhou" = "#94684E", "Tai'an" = "#BF5B1D")
 
 ####################### Loading field survey database ##########################
 # Soil sample grouping information in field survey
@@ -99,7 +102,10 @@ Field_input_dist = Field_Bray_dist_rela
 Green_input_dist = Green_Bray_dist_mean
 
 # create null database for save data
+Field_t_test_result_BC = NULL
 Field_BC_data_all = NULL
+
+Green_t_test_result_BC = NULL
 Green_BC_data_all = NULL
 
 Year = unique(Field_group$Year)
@@ -137,7 +143,7 @@ for(i in Year){
                                            varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Field_dist")
     Field_Exotic_BC_long$Origin <- "Exotic"
     
-    ## merge data sets
+    ## merge data
     Field_Pairwise_BC_data <- rbind(Field_Native_BC_long, Field_Exotic_BC_long)
     
     ## adding species Latin names
@@ -147,7 +153,14 @@ for(i in Year){
     
     Field_Pairwise_BC_data$Year <- i; Field_Pairwise_BC_data$Site <- ii
     
-    ## merge data sets
+    ## Student's t-test 
+    t_test_mod <- t.test(Field_dist ~ Origin, data = Field_Pairwise_BC_data)
+    Field_t_test_result <- data.frame(Type = "Field", Year = i, Site = ii,
+                                      t_value = round(t_test_mod$statistic, 2),
+                                      p_value = round(t_test_mod$p.value, 3))
+    
+    ## Merge data sets
+    Field_t_test_result_BC = rbind(Field_t_test_result_BC, Field_t_test_result)
     Field_BC_data_all = rbind(Field_BC_data_all, Field_Pairwise_BC_data)
     
     ########################## Greenhouse experiment ###########################
@@ -175,297 +188,370 @@ for(i in Year){
     Green_Pairwise_BC_data <- rbind(Green_Native_BC_long, Green_Exotic_BC_long)
     Green_Pairwise_BC_data$Year <- i; Green_Pairwise_BC_data$Site <- ii
     
+    ## Student's t-test 
+    t_test_mod <- t.test(Green_dist ~ Origin, data = Green_Pairwise_BC_data)
+    Greem_t_test_result <- data.frame(Type = "Green", Year = i, Site = ii,
+                                      t_value = round(t_test_mod$statistic, 2),
+                                      p_value = round(t_test_mod$p.value, 3))
+    
     ## Merge data sets
+    Green_t_test_result_BC = rbind(Green_t_test_result_BC, Greem_t_test_result)
     Green_BC_data_all = rbind(Green_BC_data_all, Green_Pairwise_BC_data)
     
   }
 }
 
-# Compositional dissimilarity in rhizosphere fungal communities among natives or 
-# aliens co-occurred at the same site and time in the field and greenhouse exp.
-with_bc_data <- Field_BC_data_all %>% left_join(Green_BC_data_all)
+head(Field_BC_data_all)
+head(Green_BC_data_all)
 
-# Add temperature information
-with_bc_data <- with_bc_data %>% left_join(unique(Field_group[,c("Site", "Year", "Tave")]))
+#pair_bc_data_add = Field_BC_data_all %>% left_join(Green_BC_data_all)
 
-# Estimated the environmental effects
-with_bc_data$env_Effect_on_fungi <- log(with_bc_data$Field_dist/with_bc_data$Green_dist)
+################################## Figure 2a ###################################
+Field_BC_data_all$Site = factor(Field_BC_data_all$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
 
-mod = lm(env_Effect_on_fungi ~ Origin * Year * Site, data = with_bc_data)
-anova(mod)
+# rename
+Field_BC_data_all$Origin[Field_BC_data_all$Origin == "Exotic"] <- "Alien"
+Field_BC_data_all$Origin = factor(Field_BC_data_all$Origin, levels = c("Native","Alien"))
+Field_BC_data_all$Year = factor(Field_BC_data_all$Year, levels = rev(c("2018", "2020", "2021")))
 
-t.test(with_bc_data$env_Effect_on_fungi, mu = 0)
-# t = 19.16, p < 0.001
-t.test(subset(with_bc_data, Origin == "Native")$env_Effect_on_fungi, mu = 0)
-t.test(subset(with_bc_data, Origin == "Exotic")$env_Effect_on_fungi, mu = 0)
-t.test(subset(with_bc_data, Origin == "Native")$env_Effect_on_fungi,
-       subset(with_bc_data, Origin == "Exotic")$env_Effect_on_fungi)
+# reorder by origin and site
+Field_pair_BC_sorted <- Field_BC_data_all %>% arrange(Site, Year, Origin)
 
-# Loading traits database
-Field_group <- read.xlsx("Field_data_group.xlsx", sheet = "field_group", rowNames = T, colNames = T)
-Field_group$Sample_ID <- rownames(Field_group)
+# Student’s t-tests for total database in field survey
+var.test(Field_dist ~ Origin, data = Field_pair_BC_sorted)
 
-# Loading plant phylogenetic tree
-plant_tree <- read.newick("IQ_tree_plant_2025.newick")
-plant_tree_max <- cophenetic(plant_tree)
+t.test(Field_pair_BC_sorted$Field_dist ~ Field_pair_BC_sorted$Origin, var.equal = TRUE)
+(0.7951722 - 0.7759438)/0.7759438 # decreased 2.5% 
 
-traits_var = c("Chol", "SLA", "LDMC", "SRL", "FRR", "RMF")
-Year = unique(Field_group$Year)
-Site = unique(Field_group$Site)
 
-# Loop
-Field_traits_dist_all = NULL
+# plot data for total database
+ggplot(Field_pair_BC_sorted, aes(x = Field_dist, y = "Overall", fill = Origin, color = Origin)) +
+  geom_density_ridges(rel_min_height = 0.01, scale = 0.3,alpha = 0.5, linewidth = 0.7,
+                      quantile_lines = TRUE, quantile_fun = mean) +
+  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01),limits = c(0, 1),
+                     breaks = seq(0, 1, by = 0.25),expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
+  theme_minimal() +
+  theme(plot.title = element_textbox(size = 14, color = "black", fill = "grey90",
+                                     box.color = "grey50", padding = margin(5, 5, 5, 5), 
+                                     margin = margin(b = 0),halign = 0.5, width = grid::unit(1, "npc")),
+        legend.position = "none", legend.title = element_blank(),
+        legend.key = element_blank(), legend.text = element_text(size = 10),
+        plot.tag = element_text(size = 16, face = "bold"),
+        axis.ticks.y = element_line(color = 'black'),
+        axis.title = element_text(colour = 'black', size = 14),
+        axis.text.y = element_text(colour = 'black', size = 12),
+        axis.text.x = element_blank(),
+        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 12, colour = "black"),
+        panel.spacing = unit(0, "lines")) +
+  labs(y = NULL,x = NULL, title = "Field survey") -> p1; p1
 
-for(i in Year){
-  for(ii in Site) {
+
+# plot data per site per year
+print(subset(Field_t_test_result_BC, p_value <= 0.05))
+
+ggplot(Field_pair_BC_sorted, aes(x = Field_dist, y = Year, fill = Origin, color = Origin)) +
+  geom_density_ridges(rel_min_height = 0.01, scale = 0.9, alpha = 0.5, linewidth = 0.7,
+                      quantile_lines = TRUE, quantile_fun = mean) +
+  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01), limits = c(0,1), 
+                     breaks = seq(0, 1, by = 0.25), expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
+  ggh4x::facet_grid2(Site ~ ., #switch = "y", 
+                     strip = ggh4x::strip_themed(background_y = ggh4x::elem_list_rect(fill = site_colors))) +
+  theme_minimal() +
+  theme(legend.position = "none", 
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.line.x = element_line(color = 'black'),
+        axis.ticks = element_line(color = 'black'),
+        axis.title.x = element_text(colour = 'black', size = 14),
+        axis.title.y = element_text(colour = 'black', size = 14),
+        axis.text = element_text(colour = 'black', size = 12),
+        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 12, colour = "black"),
+        panel.spacing = unit(0, "lines")) +
+  labs(x = 'Pairwise Bray–Curtis dissimilarities', y = NULL) +
+  geom_segment(aes(x = 0, xend = 0, y = 1, yend = 3), color = "black") -> p2; p2
+
+## 5.83 x 11.00
+mian_Fig_2_left <- p2 %>% insert_top(p1,height = 0.1) %>% as.ggplot() 
+mian_Fig_2_left # 
+
+
+############################## Greenhouse experiment ###########################
+Green_BC_data_all$Site <- factor(Green_BC_data_all$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
+
+# rename
+Green_BC_data_all$Origin[Green_BC_data_all$Origin == "Exotic"] <- "Alien"
+Green_BC_data_all$Origin <- factor(Green_BC_data_all$Origin, levels = c("Native","Alien"))
+Green_BC_data_all$Year <- factor(Green_BC_data_all$Year, levels = rev(c("2018", "2020", "2021")))
+
+# reorder by origin and site
+Green_pair_BC_sorted <- Green_BC_data_all %>% arrange(Site, Year, Origin)
+
+## Student’s t-tests for total database in greenhouse experiment
+Green_fungi_relative <- decostand(Green_raw_abun, method = "total", MARGIN = 2)
+# colSums(Green_fungi_relative)
+Green_Bray_dist_rela <- vegdist(t(Green_fungi_relative), method = 'bray')
+
+native_sample <- subset(Green_group, Origin == "Native")$Sample_ID
+exotic_sample <- subset(Green_group, Origin == "Exotic")$Sample_ID
+
+# native
+Green_Bray_nat <- as.matrix(Green_Bray_dist_rela)[native_sample, native_sample]
+# dim(Green_Bray_nat)
+Green_lower_tri_mask <- lower.tri(Green_Bray_nat, diag = FALSE)
+Green_Native_matrix_lower <- Green_Bray_nat
+Green_Native_matrix_lower[!Green_lower_tri_mask] <- NA
+Green_Native_BC_long <- reshape2::melt(Green_Native_matrix_lower, na.rm = TRUE, 
+                                       varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Green_dist")
+Green_Native_BC_long$Origin <- "Native"
+
+# Alien
+Green_Bray_exo <- as.matrix(Green_Bray_dist_rela)[exotic_sample, exotic_sample]
+# dim(Green_Bray_exo)
+Green_lower_tri_mask <- lower.tri(Green_Bray_exo, diag = FALSE)
+Green_Exotic_matrix_lower <- Green_Bray_exo
+Green_Exotic_matrix_lower[!Green_lower_tri_mask] <- NA
+Green_Exotic_BC_long <- reshape2::melt(Green_Exotic_matrix_lower, na.rm = TRUE, 
+                                       varnames = c("Sample_ID1", "Sample_ID2"), value.name = "Green_dist")
+Green_Exotic_BC_long$Origin <- "Alien"
+
+# merge data
+Green_Pairwise_BC_data <- rbind(Green_Native_BC_long, Green_Exotic_BC_long)
+Green_Pairwise_BC_data$Origin <- factor(Green_Pairwise_BC_data$Origin, levels = c("Native","Alien"))
+
+var.test(Green_dist ~ Origin, data = Green_Pairwise_BC_data)
+
+t.test(Green_dist ~ Origin,Green_Pairwise_BC_data, var.equal = TRUE) 
+# t = 0.4151, p = 0.6781
+
+# plot data for total database
+ggplot(Green_Pairwise_BC_data, aes(x = Green_dist, y = "Overall", fill = Origin, color = Origin)) +
+  geom_density_ridges(rel_min_height = 0.01, scale = 0.3,alpha = 0.5, linewidth = 0.7,
+                      quantile_lines = TRUE, quantile_fun = mean) +
+  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01),limits = c(0, 1),
+                     breaks = seq(0, 1, by = 0.25),expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
+  theme_minimal() +
+  theme(plot.title = element_textbox(size = 14, color = "black", fill = "grey90",
+                                     box.color = "grey50", padding = margin(5, 5, 5, 5), 
+                                     margin = margin(b = 0),halign = 0.5, width = grid::unit(1, "npc")),
+        legend.position = "none", legend.title = element_blank(),
+        legend.key = element_blank(), legend.text = element_text(size = 10),
+        plot.tag = element_text(size = 16, face = "bold"),
+        axis.ticks.y = element_line(color = 'black'),
+        axis.title = element_text(colour = 'black', size = 14),
+        axis.text.y = element_text(colour = 'black', size = 12),
+        axis.text.x = element_blank(),
+        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 12, colour = "black"),
+        panel.spacing = unit(0, "lines")) +
+  labs(y = NULL,x = NULL, title = "Greenhouse experiment") -> p3; p3
+
+# plot data per site per year
+print(subset(Green_t_test_result_BC, p_value <= 0.05))
+
+t.test(Green_dist ~ Origin, subset(Green_pair_BC_sorted, Site == "Tai'an" & Year == "2018"))
+
+ggplot(Green_pair_BC_sorted, aes(x = Green_dist, y = Year, fill = Origin, color = Origin)) +
+  geom_density_ridges(rel_min_height = 0.01, scale = 0.9, alpha = 0.5, linewidth = 0.7,
+                      quantile_lines = TRUE, quantile_fun = mean) +
+  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
+  scale_x_continuous(labels = scales::label_comma(accuracy = 0.01), limits = c(0,1), 
+                     breaks = seq(0, 1, by = 0.25), expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(expand = expansion(mult = c(0.36, 0))) +
+  ggh4x::facet_grid2(Site ~ ., #switch = "y", 
+                     strip = ggh4x::strip_themed(background_y = ggh4x::elem_list_rect(fill = site_colors))) +
+  theme_minimal() +
+  theme(legend.position = "none", 
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.line.x = element_line(color = 'black'),
+        axis.ticks = element_line(color = 'black'),
+        axis.title.x = element_text(colour = 'black', size = 14),
+        axis.title.y = element_text(colour = 'black', size = 14),
+        axis.text = element_text(colour = 'black', size = 12),
+        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 12, colour = "black"),
+        panel.spacing = unit(0, "lines")) +
+  labs(x = 'Pairwise Bray–Curtis dissimilarities', y = NULL) -> p4; p4
+
+
+## 5.83 x 11.00
+mian_Fig_2_right <- p4 %>% insert_top(p3,height = 0.1) %>% as.ggplot() 
+mian_Fig_2_right 
+
+mian_Fig_2_left|mian_Fig_2_right -> mian_Fig_2; mian_Fig_2
+
+
+############################### Figure S4a & 4c #################################
+# The relationships between the mean pairwise fungal compositional dissimilarity 
+# among co-occurring natives (b) or aliens (c) estimated in the field survey and 
+# those estimated in the greenhouse experiment. 
+
+pair_BC_sorted_merge = Field_pair_BC_sorted %>% left_join(Green_pair_BC_sorted)
+
+############################### Figure S4a #####################################
+# native database
+pair_BC_sorted_merge_nat = subset(pair_BC_sorted_merge, Origin == "Native")
+
+t.test(pair_BC_sorted_merge_nat$Field_dist, pair_BC_sorted_merge_nat$Green_dist, var.equal = TRUE)
+(0.7951722 - 0.6984232)/0.6984232 # increased 13.9%
+
+# Student t.test
+Year = unique(pair_BC_sorted_merge_nat$Year)
+Site = unique(pair_BC_sorted_merge_nat$Site)
+all_t_test_result = NULL
+
+for (i in Year) {
+  for (ii in Site) {
+    sub_group = subset(pair_BC_sorted_merge_nat, Year == i & Site == ii)
     
-    ## Field survey
-    select_group <- subset(Field_group, Year == i & Site == ii)
-    Native_sample <- subset(select_group, Origin == "Native")$Sample_ID
-    Exotic_sample <- subset(select_group, Origin == "Exotic")$Sample_ID
-    
-    ## select sp latin names
-    Native_sp <- subset(select_group, Origin == "Native")$Species
-    Exotic_sp <- subset(select_group, Origin == "Exotic")$Species
-    
-    # six functional traits
-    traits_max = Field_group[,c("Sample_ID", "Chol", "SLA", "LDMC", "SRL", "FRR", "RMF")]
-    traits_max$Sample_ID = NULL
-    traits_max_dist = compute_dist_matrix(traits_max, metric = "euclidean", scale = T, center = T)
-    ## Native
-    N_Native_matrix <- as.matrix(traits_max_dist)[Native_sample, Native_sample]
-    N_lower_tri_mask <- lower.tri(N_Native_matrix, diag = FALSE)
-    N_Native_matrix_lower <- N_Native_matrix
-    N_Native_matrix_lower[!N_lower_tri_mask] <- NA
-    all_Native_BC_long <- reshape2::melt(N_Native_matrix_lower, na.rm = TRUE, 
-                                         varnames = c("Sample_ID1", "Sample_ID2"), value.name = "all_traits")
-    all_Native_BC_long$Origin <- "Native"
-    
-    ## Exotic
-    N_Exotic_matrix <- as.matrix(traits_max_dist)[Exotic_sample, Exotic_sample]
-    N_lower_tri_mask <- lower.tri(N_Exotic_matrix, diag = FALSE)
-    N_Exotic_matrix_lower <- N_Exotic_matrix
-    N_Exotic_matrix_lower[!N_lower_tri_mask] <- NA
-    all_Exotic_BC_long <- reshape2::melt(N_Exotic_matrix_lower, na.rm = TRUE, 
-                                         varnames = c("Sample_ID1", "Sample_ID2"), value.name = "all_traits")
-    all_Exotic_BC_long$Origin <- "Exotic"
-    
-    ## merge data
-    all_Pairwise_BC_data <- rbind(all_Native_BC_long, all_Exotic_BC_long) 
-    
-    # plant phylogenetic distance
-    ## Native
-    N_Native_matrix <- as.matrix(plant_tree_max)[Native_sp, Native_sp]
-    N_lower_tri_mask <- lower.tri(N_Native_matrix, diag = FALSE)
-    N_Native_matrix_lower <- N_Native_matrix
-    N_Native_matrix_lower[!N_lower_tri_mask] <- NA
-    phy_Native_BC_long <- reshape2::melt(N_Native_matrix_lower, na.rm = TRUE, 
-                                         varnames = c("Species_ID1", "Species_ID2"), value.name = "Phylo")
-    phy_Native_BC_long$Origin <- "Native"
-    
-    ## Exotic
-    N_Exotic_matrix <- as.matrix(plant_tree_max)[Exotic_sp, Exotic_sp]
-    N_lower_tri_mask <- lower.tri(N_Exotic_matrix, diag = FALSE)
-    N_Exotic_matrix_lower <- N_Exotic_matrix
-    N_Exotic_matrix_lower[!N_lower_tri_mask] <- NA
-    phy_Exotic_BC_long <- reshape2::melt(N_Exotic_matrix_lower, na.rm = TRUE, 
-                                         varnames = c("Species_ID1", "Species_ID2"), value.name = "Phylo")
-    phy_Exotic_BC_long$Origin <- "Exotic"
-    
-    ## merge data
-    phy_Pairwise_BC_data <- rbind(phy_Native_BC_long, phy_Exotic_BC_long) 
-    
-    sample_group1 <- subset(Field_group, Year == i & Site == ii)[,c("Sample_ID", "Species")]
-    colnames(sample_group1) = c("Sample_ID1", "Species_ID1")
-    
-    sample_group2 <- subset(Field_group, Year == i & Site == ii)[,c("Sample_ID", "Species")]
-    colnames(sample_group2) = c("Sample_ID2", "Species_ID2")
-    
-    phy_Pairwise_BC_data = phy_Pairwise_BC_data %>% left_join(sample_group1) %>% left_join(sample_group2)
+    t.test(sub_group$Field_dist, sub_group$Green_dist)
+    ## Student's t-test 
+    t_test_mod <- t.test(sub_group$Field_dist, sub_group$Green_dist, data = sub_group)
+    t_test_result <- data.frame(Type = "Field vs. Greenhouse", Year = i, Site = ii,
+                                t_value = round(t_test_mod$statistic, 2),
+                                p_value = round(t_test_mod$p.value, 3))
     
     ## Merge data sets
-    Field_traits_dist = all_Pairwise_BC_data %>% 
-      left_join(phy_Pairwise_BC_data)
-    
-    Field_traits_dist$Year <- i; Field_traits_dist$Site <- ii
-    
-    ##
-    Field_traits_dist_all = rbind(Field_traits_dist_all, Field_traits_dist)
+    all_t_test_result = rbind(all_t_test_result, t_test_result)
   }
 }
 
-# plant richness per site per year
-plant_SR = Field_group %>% group_by(Origin, Tave) %>%
-  summarise(plant_sr = n())
+all_t_test_result$sig = ifelse(all_t_test_result$p_value <= 0.05, 1, 0)
+print(subset(all_t_test_result, sig == 1))
 
-# merge all information
-with_bc_data$Year = as.factor(with_bc_data$Year)
-Field_traits_dist_all$Year = as.factor(Field_traits_dist_all$Year)
-with_bc_data_add <- with_bc_data %>% left_join(Field_traits_dist_all)
+colnames(β_Bray_Native)
+β_Bray_Native = pair_BC_sorted_merge_nat %>%
+  group_by(Year, Site) %>%
+  summarise(
+    Field_mean = mean(Field_dist, na.rm = TRUE),
+    Field_sd = sd(Field_dist, na.rm = TRUE),
+    Field_se = Field_sd / sqrt(n()),
+    #
+    Green_mean = mean(Green_dist, na.rm = TRUE),
+    Green_sd = sd(Green_dist, na.rm = TRUE),
+    Green_se = Green_sd / sqrt(n()),
+    .groups = "drop") %>%
+  left_join(all_t_test_result)
 
-# averaging the data per site per year
-with_bc_data_add_mean = with_bc_data_add %>%
-  group_by(Origin, Tave) %>% 
-  summarise(mean_env = mean(env_Effect_on_fungi, na.rm = TRUE),
-            n = sum(!is.na(env_Effect_on_fungi)),                     
-            se_env = sd(env_Effect_on_fungi, na.rm = TRUE) / sqrt(n), 
-            ci_lower = mean_env - 1.96 * se_env,                     
-            ci_upper = mean_env + 1.96 * se_env,                       
-            mean_traits = mean(all_traits),
-            mean_phylo = mean(Phylo)) %>%
-  left_join(plant_SR) %>% as.data.frame()
-# str(with_bc_data_add_mean)
+fit <- deming::deming(Field_mean ~ Green_mean, ystd = Field_sd, xstd = Green_sd, data = β_Bray_Native)
+print(fit)
 
-# rename
-with_bc_data_add_mean$Origin[with_bc_data_add_mean$Origin == "Exotic"] <- "Alien"
-with_bc_data_add_mean$Origin = factor(with_bc_data_add_mean$Origin, levels = c("Native","Alien"))
-with_bc_data_add_mean$plant_sr <- as.numeric(with_bc_data_add_mean$plant_sr)
+β_Bray_Native$Site <- factor(β_Bray_Native$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
 
-# 
-with_bc_data_add_mean2 = with_bc_data_add_mean
-with_bc_data_add_mean2 = with_bc_data_add_mean2 %>% left_join(unique(Field_group[,c("Tave", "Site_pool")]))
-
-# relationship between site-level fungal richness and environmental effects
-mod0 <- lm(mean_env ~ Origin*Site_pool, data = with_bc_data_add_mean2)
-anova(mod0)
-
-# Calculate the mean fungal richness at the site level.
-fungal_richness_site = Field_group %>% group_by(Tave, Origin) %>% 
-  summarise(site_SR = mean(Field_SR))
-fungal_richness_site$Origin[fungal_richness_site$Origin == "Exotic"] <- "Alien"
-with_bc_data_add_mean2 = with_bc_data_add_mean2 %>% left_join(fungal_richness_site)
-
-# relationship between mean fungal richness per site per year and environmental effects
-mod0 <- lm(mean_env ~ Origin*site_SR, data = with_bc_data_add_mean2)
-anova(mod0)
-
-# relationship between plant richness and environmental effects
-mod1 <- lm(mean_env ~ Origin*plant_sr, data = with_bc_data_add_mean)
-anova(mod1)
-
-# relationship between pairwise distance of plant functional traits and environmental effects
-mod2 <- lm(mean_env ~ Origin*mean_traits, data = with_bc_data_add_mean)
-anova(mod2)
-
-# relationship between pairwise distance of plant phylogeny and environmental effects
-mod3 <- lm(mean_env ~ Origin*mean_phylo, data = with_bc_data_add_mean)
-anova(mod3)
-
-################################# Figure 3a ####################################
-ggplot(data = with_bc_data_add_mean, aes(x = Tave, y = mean_env, fill = Origin, color = Origin, group = Origin)) + 
-  geom_smooth(method = "lm", se = F, aes(linetype = Origin), size = 0.5) +
-  geom_errorbar(aes(ymin = mean_env - se_env*1.96,
-                    ymax = mean_env + se_env*1.96), width = 0, linewidth = 0.5) +
-  geom_point(size = 3, pch = 21, color = "black") + 
-  ggpmisc::stat_poly_eq(aes(color = Origin, group = Origin, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
-                        formula = y ~ x, parse = TRUE, size = 4, label.y.npc = "top", rr.digits = 3) + 
+ggplot()+
+  #geom_abline(intercept = 0, slope = 1, color = "#8B0000", linetype = 1, size = 1) +
+  geom_abline(intercept = -0.1287923, slope = 1.3337283, linetype = 2, linewidth = 0.5) +
+  geom_errorbar(data = β_Bray_Native, mapping = aes(x = Green_mean, ymax = Field_mean + 1.96*Field_se, ymin = Field_mean - 1.96*Field_se, color = Site), width = 0, size = 0.5) +
+  geom_errorbarh(data = β_Bray_Native, mapping = aes(y = Field_mean, xmax = Green_mean + 1.96*Green_se, xmin = Green_mean - 1.96*Green_se, color = Site), height = 0, size = 0.5) +
+  geom_point(β_Bray_Native, mapping = aes(x = Green_mean,y = Field_mean, shape = Year, fill = Site, color = Site), size = 3, color = "black") +
+  # add signal symbol
+  #geom_point(subset(β_Bray_Native, sig == "0"), mapping = aes(x = Green_mean,y = Field_mean, shape = Year, fill = Site, color = Site), fill = "white",size = 2.5) +
+  scale_color_manual(values = site_colors)+
+  scale_fill_manual(values = site_colors)+
+  guides(col = guide_legend(ncol = 1))+
+  scale_shape_manual(values = c(24,23,25)) +
+  scale_x_continuous(labels = scales::label_comma(accuracy =0.01), limits = c(0.54,0.88)) +
+  scale_y_continuous(labels = scales::label_comma(accuracy =0.01), limits = c(0.58,0.92)) + 
+  #annotate("segment", x = 0.56, xend = 0.58, y = 0.90, yend = 0.90, size = 1, color = "#8B0000") +
+  #annotate("text", x = 0.60, y = 0.901, label = "1:1 line", size = 4) + 
+  #annotate("segment", x = 0.56, xend = 0.58, y = 0.88, yend = 0.88, size = 1, color = "black") + 
+  #annotate("text", x = 0.605, y = 0.881, label = "Model fit", size = 4) + 
   theme_bw() + mytheme + 
-  theme(legend.position = c(0.85,0.15),
-        panel.grid=element_blank(), 
-        legend.background = element_rect(fill = NA),
-        axis.title = element_text(size = 13, color = "black"),
-        axis.text = element_text(size = 11, color = "black"),
-        plot.tag = element_text(size = 14, face = "bold")) + 
-  scale_color_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) +
-  scale_linetype_manual(values = c(1,2)) + 
-  geom_hline(yintercept = 0, linetype = 2, size = 0.5) +
-  scale_y_continuous(expand = expansion(mult = c(0.3, 0.1))) + 
-  labs(x = "Annual mean temperature of sampling site (℃)",
-       y = bquote(atop("Environmental effects", 
-                       Ln ~ "(" ~ frac(Pairwise~dissimilarity["estimated in the field"], 
-                                       Pairwise~dissimilarity["estimated in greenhouse"]) ~ ")")), tag = "a",
-       title = "Analyzed with all ASVs") -> Figure_3a_right; Figure_3a_right
+  #theme(legend.position = c(0.12, 0.60),
+  #      legend.title = element_text(size = 10, color = "black")) + 
+  labs(x = NULL, 
+       y = "Mean pairwise Bray–Curtis dissimilarities\nestimated in the field",
+       tag = "a", title = c("Among co-occurring native species")) -> Figure_S4a; Figure_S4a
 
-Rmisc::summarySE(with_bc_data_add, groupvars = "Origin", measurevar = "env_Effect_on_fungi")
 
-with_bc_data_add_mean_all = with_bc_data_add %>%
-  group_by(Origin) %>% 
-  summarise(mean_env = mean(env_Effect_on_fungi, na.rm = TRUE),
-            n = sum(!is.na(env_Effect_on_fungi)),                     
-            se_env = sd(env_Effect_on_fungi, na.rm = TRUE) / sqrt(n), 
-            ci_lower = mean_env - 1.96 * se_env,                     
-            ci_upper = mean_env + 1.96 * se_env) 
+############################### Figure S4c #####################################
+# Alien database
+pair_BC_sorted_merge_exo = subset(pair_BC_sorted_merge, Origin == "Alien")
 
-with_bc_data_add_mean_all$Origin[with_bc_data_add_mean_all$Origin == "Exotic"] <- "Alien"
-with_bc_data_add_mean_all$Origin = factor(with_bc_data_add_mean_all$Origin, levels = c("Native","Alien"))
+t.test(pair_BC_sorted_merge_exo$Field_dist, pair_BC_sorted_merge_exo$Green_dist, var.equal = TRUE)
+(0.7759438 - 0.7281435 )/0.7281435 # increased 6.6%
 
-ggplot(data = with_bc_data_add_mean_all, 
-       aes(x = Origin, y = mean_env, fill = Origin)) +
-  geom_point(size = 3.5, color = "black", pch = 21) + 
-  geom_errorbar(aes(x = Origin, 
-                    ymax = mean_env + se_env*1.96, 
-                    ymin = mean_env - se_env*1.96),
-                width=0,alpha = 1, color = "black")+
+# Student t.test
+Year = unique(pair_BC_sorted_merge_exo$Year)
+Site = unique(pair_BC_sorted_merge_exo$Site)
+all_t_test_result = NULL
+
+for (i in Year) {
+  for (ii in Site) {
+    sub_group = subset(pair_BC_sorted_merge_exo, Year == i & Site == ii)
+    
+    t.test(sub_group$Field_dist, sub_group$Green_dist)
+    ## Student's t-test 
+    t_test_mod <- t.test(sub_group$Field_dist, sub_group$Green_dist, data = sub_group)
+    t_test_result <- data.frame(Type = "Field vs. Greenhouse", Year = i, Site = ii,
+                                t_value = round(t_test_mod$statistic, 2),
+                                p_value = round(t_test_mod$p.value, 3))
+    
+    ## Merge data sets
+    all_t_test_result = rbind(all_t_test_result, t_test_result)
+  }
+}
+
+all_t_test_result$sig = ifelse(all_t_test_result$p_value <= 0.05, 1, 0)
+print(subset(all_t_test_result, sig == 1))
+
+
+colnames(pair_BC_sorted_merge_exo)
+β_Bray_Exotic = pair_BC_sorted_merge_exo %>%
+  group_by(Year, Site) %>%
+  summarise(
+    Field_mean = mean(Field_dist, na.rm = TRUE),
+    Field_sd = sd(Field_dist, na.rm = TRUE),
+    Field_se = Field_sd / sqrt(n()),
+    #
+    Green_mean = mean(Green_dist, na.rm = TRUE),
+    Green_sd = sd(Green_dist, na.rm = TRUE),
+    Green_se = Green_sd / sqrt(n()),
+    .groups = "drop") %>%
+  left_join(all_t_test_result)
+
+fit <- deming::deming(Field_mean ~ Green_mean, ystd = Field_sd, xstd = Green_sd, data = β_Bray_Exotic)
+print(fit)
+
+β_Bray_Exotic$Site <- factor(β_Bray_Exotic$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
+
+ggplot()+
+  #geom_abline(intercept = 0, slope = 1, color = "#96393D", linetype = 1, size = 1)+
+  geom_abline(intercept = -3.030977, slope = 5.517322, linetype = 2, linewidth = 0.5)+
+  geom_errorbar(data = β_Bray_Exotic, mapping = aes(x = Green_mean, ymax = Field_mean + 1.96*Field_se, ymin = Field_mean - 1.96*Field_se, color = Site), width = 0, size = 0.5) +
+  geom_errorbarh(data = β_Bray_Exotic, mapping = aes(y = Field_mean, xmax = Green_mean + 1.96*Green_se, xmin = Green_mean - 1.96*Green_se, color = Site), height = 0, size = 0.5) +
+  geom_point(β_Bray_Exotic, mapping = aes(x = Green_mean,y = Field_mean, shape = Year, fill = Site, color = Site), size = 3, color = "black") +
+  # add signal symbol
+  #geom_point(subset(β_Bray_Exotic, sig == "0"), mapping = aes(x = Green_mean,y = Field_mean, shape = Year, fill = Site, color = Site), fill = "white",size = 2.5) +
+  scale_color_manual(values = site_colors)+
+  scale_fill_manual(values = site_colors)+
+  guides(col = guide_legend(ncol = 1))+
+  scale_shape_manual(values = c(24,23,25)) +
+  scale_x_continuous(labels = scales::label_comma(accuracy =0.01), limits = c(0.57,0.83)) +
+  scale_y_continuous(labels = scales::label_comma(accuracy =0.01), limits = c(0.54,0.92)) + 
   theme_bw() + mytheme + 
-  #geom_hline(yintercept = 0, linetype = 2, size = 0.5) +
-  scale_y_continuous(expand = expansion(mult = c(0.2, 0.2))) + 
-  theme(legend.position = "none",
-        panel.grid=element_blank(), 
-        legend.background = element_rect(fill = NA),
-        axis.title = element_text(size = 13, color = "black"),
-        axis.text = element_text(size = 11, color = "black"),
-        plot.tag = element_text(size = 14, face = "bold")) + 
-  labs(x = NULL,
-       y = NULL,
-       #y = bquote(atop("Environmental effects", 
-       #                Ln ~ "(" ~ frac(Pairwise~dissimilarity["estimated in the field"], 
-       #                                 Pairwise~dissimilarity["estimated in greenhouse"]) ~ ")")),
-       title = NULL) + 
-  scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) -> Figure_3a_left; Figure_3a_left
-
-
-Figure_3a_right + annotation_custom(grob=ggplotGrob(Figure_3a_left), ymin = -0.45, ymax = -0.05, xmin=18, xmax=21.5) -> Figure_3a; Figure_3a
-
-
-################################# Figure 3c ####################################
-# difference in environmental effects between native and alien species (natives minus aliens)
-with_bc_data_mean_nat <- subset(with_bc_data_add_mean, Origin == "Native")
-colnames(with_bc_data_mean_nat)[-c(1:2)] <- paste0("nat_",colnames(with_bc_data_mean_nat)[-c(1:2)])
-with_bc_data_mean_exo <- subset(with_bc_data_add_mean, Origin == "Alien")
-colnames(with_bc_data_mean_exo)[-c(1:2)] <- paste0("exo_",colnames(with_bc_data_mean_exo)[-c(1:2)])
-
-with_bc_data_mean_merg = with_bc_data_mean_nat[,-1] %>% left_join(with_bc_data_mean_exo[,-1])
-with_bc_data_mean_merg$diff = with_bc_data_mean_merg$nat_mean_env - with_bc_data_mean_merg$exo_mean_env
-with_bc_data_mean_merg$diff_se = sqrt(with_bc_data_mean_merg$nat_se_env^2 + with_bc_data_mean_merg$exo_se_env^2)
-
-cor.test(with_bc_data_mean_merg$Tave, with_bc_data_mean_merg$diff, method = "spearman")
-
-ggplot(data = with_bc_data_mean_merg, aes(x = Tave, y = diff)) + 
-  geom_smooth(data = subset(with_bc_data_mean_merg, Tave != 14.70000), 
-              mapping = aes(x = Tave, y = diff),
-              method = "lm", se = F, formula = y ~ x, 
-              linetype = 1, color = "black", linewidth = 0.5) +
-  geom_errorbar(aes(ymin = diff - diff_se*1.96,
-                    ymax = diff + diff_se*1.96), width = 0, linewidth = 0.5) +
-  geom_point(size = 3, pch = 21, color = "black", fill = "grey") + 
-  geom_point(data = subset(with_bc_data_mean_merg, Tave == 14.70000), mapping = aes(x = Tave, y = diff),
-             size = 3, pch = 21, color = "black", fill = "black") +
-  ggpmisc::stat_poly_eq(data = subset(with_bc_data_mean_merg, Tave != 14.70000), 
-                        mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
-                        formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
-                        label.y.npc = 0.98, label.x.npc = 0.95) + 
-  annotate("text", x = 17.8, y = 0.68, label = "Excluding Tai'an in 2021:", size = 4) + 
-  ggpmisc::stat_poly_eq(data = with_bc_data_mean_merg, 
-                        mapping = aes(x = Tave, y = diff, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
-                        formula = y ~ x, parse = TRUE, size = 4, rr.digits = 3,
-                        label.y.npc = 0.92, label.x.npc = 0.95) + 
-  annotate("text", x = 18.95, y = 0.61, label = "All sites:", size = 4) + 
-  theme_bw() + mytheme + 
-  theme(legend.position = c(0.80,0.25),
-        panel.grid=element_blank(), 
-        legend.background = element_rect(fill = NA),
-        axis.title = element_text(size = 13, color = "black"),
-        axis.text = element_text(size = 11, color = "black"),
-        plot.tag = element_text(size = 14, face = "bold")) + 
-  scale_linetype_manual(values = c(1,2)) + 
-  geom_hline(yintercept = 0, linetype = 2, size = 0.5) +
-  labs(x = "Annual mean temperature of sampling site (℃)",
-       y = "Difference in environmental effect\n(Natives - Aliens)", tag = "c",
-       title = NULL) -> Figure_3c; Figure_3c
-
-
-# 11.26 x 5.11
-Figure_3a/Figure_3c
+  #theme(legend.position = c(0.12, 0.60),
+  #      legend.title = element_text(size = 10, color = "black")) + 
+  labs(x = "Mean pairwise Bray–Curtis\ndissimilarities estimated in the greenhouse experiment", 
+       y = "Mean pairwise Bray–Curtis dissimilarities\nestimated in the field", 
+       title = c("Among co-occurring non-native species"), tag = "c") -> Figure_S4c; Figure_S4c
 
 
