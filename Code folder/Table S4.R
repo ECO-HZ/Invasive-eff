@@ -43,88 +43,16 @@ fungi_relative <- decostand(fungi_Flattening, method = "total", MARGIN = 2)
 
 ################### community composition of overall fungi #####################
 set.seed(1234)
-Overall_fungi_perM <- with(Field_group_scale, GUniFrac::adonis3(t(fungi_relative) ~ Origin * (Tave + Prec + Soil_ph + Wcont + Soil_N), method = "bray", by = "margin",
+Overall_fungi_perM <- with(Field_group_scale, GUniFrac::adonis3(t(fungi_relative) ~ Field_SR + Origin * (Tave + Prec + Soil_ph + Wcont + Soil_N), method = "bray",
                                                                 data = Field_group_scale, permutations = 999, strata = Group))
 
 Overall_perM_tab <- as.data.frame(Overall_fungi_perM$aov.tab)
 Overall_perM_tab$R2 <- round(Overall_perM_tab$R2,3)
 Overall_perM_tab$df <- paste0(Overall_perM_tab$Df, ",", Overall_perM_tab$Df[length(Overall_perM_tab$Df)-1])
 Overall_perM_tab$`F` <- round(Overall_perM_tab$F.Model,2)
-Overall_perM_tab$Predictors <- c("Origin", "Temperature", "Precipitation", "Soil pH", "Wcont", "Soil N", 
+Overall_perM_tab$Predictors <- c("Fungal richness", "Origin", "Temperature", "Precipitation", "Soil pH", "Wcont", "Soil N", 
                                  "Origin × Temperature", "Origin × Precipitation", "Origin × Soil pH", "Origin × Wcont", 
                                  "Origin × Soil N", "Residuals", "Total")
-Overall_perM_tab <- Overall_perM_tab[-c(12:13) ,c("Predictors", "df" ,"F", "R2", "Pr(>F)")] # Reorder
+Overall_perM_tab <- Overall_perM_tab[-c(14) ,c("Predictors", "df" ,"F", "R2", "Pr(>F)")] # Reorder
 rownames(Overall_perM_tab) <- NULL
 print(Overall_perM_tab)
-
-
-################## community composition of pathogenic fungi ###################
-Path_field_hel_no <- as.data.frame(t(fungi_Flattening))[Field_group_scale$Sample_ID ,subset(ASV_tax_information, Guilds == "Plant pathogen")$ASV_ID]
-Path_field_hel_no <- Path_field_hel_no[, colSums(Path_field_hel_no) > 0]
-Path_field_rela <- as.data.frame(decostand(t(Path_field_hel_no), method = "total", MARGIN = 2))
-# colSums(Path_field_rela)
-
-set.seed(1234)
-Path_fungi_perM <- with(Field_group_scale, GUniFrac::adonis3(t(Path_field_rela) ~ Origin * (Tave + Prec + Soil_ph + Wcont + Soil_N), method = "bray", by = "margin",
-                                                             data = Field_group_scale, permutations = 999, strata = Group))
-
-Path_perM_tab <- as.data.frame(Path_fungi_perM$aov.tab)
-Path_perM_tab$R2 <- round(Path_perM_tab$R2,3)
-Path_perM_tab$df <- paste0(Path_perM_tab$Df, ",", Path_perM_tab$Df[length(Path_perM_tab$Df)-1])
-Path_perM_tab$`F` <- round(Path_perM_tab$F.Model,2)
-Path_perM_tab$Predictors <- c("Origin", "Temperature", "Precipitation", "Soil pH", "Wcont", "Soil N", 
-                                 "Origin × Temperature", "Origin × Precipitation", "Origin × Soil pH", "Origin × Wcont", 
-                                 "Origin × Soil N", "Residuals", "Total")
-Path_perM_tab <- Path_perM_tab[-c(12:13) ,c("Predictors", "df" ,"F", "R2", "Pr(>F)")] # Reorder
-rownames(Path_perM_tab) <- NULL
-print(Path_perM_tab)
-
-
-###################### community composition of AM fungi #######################
-AM_field_hel_no <- as.data.frame(t(fungi_Flattening))[Field_group_scale$Sample_ID ,subset(ASV_tax_information, Guilds == "Arbuscular Mycorrhizal")$ASV_ID]
-AM_field_hel_no <- AM_field_hel_no[, colSums(AM_field_hel_no) > 0]
-dim(AM_field_hel_no)
-
-AM_field_hel_no_add <- AM_field_hel_no
-AM_field_hel_no_add[rowSums(AM_field_hel_no_add) == 0, ] <- 1e-6
-
-AM_field_rela <- as.data.frame(decostand(t(AM_field_hel_no_add), method = "total", MARGIN = 2))
-# colSums(AM_field_rela)
-
-set.seed(1234)
-AM_fungi_perM <- with(Field_group_scale, GUniFrac::adonis3(t(AM_field_rela) ~ Origin * (Tave + Prec + Soil_ph + Wcont + Soil_N), method = "bray", by = "margin",
-                                                            data = Field_group_scale, permutations = 999, strata = Group))
-
-AM_perM_tab <- as.data.frame(AM_fungi_perM$aov.tab)
-AM_perM_tab$R2 <- round(AM_perM_tab$R2,3)
-AM_perM_tab$df <- paste0(AM_perM_tab$Df, ",", AM_perM_tab$Df[length(AM_perM_tab$Df)-1])
-AM_perM_tab$`F` <- round(AM_perM_tab$F.Model,2)
-AM_perM_tab$Predictors <- c("Origin", "Temperature", "Precipitation", "Soil pH", "Wcont", "Soil N", 
-                              "Origin × Temperature", "Origin × Precipitation", "Origin × Soil pH", "Origin × Wcont", 
-                              "Origin × Soil N", "Residuals", "Total")
-AM_perM_tab <- AM_perM_tab[-c(12:13) ,c("Predictors", "df" ,"F", "R2", "Pr(>F)")] # Reorder
-rownames(AM_perM_tab) <- NULL
-print(AM_perM_tab)
-
-
-################# community composition of saprophytic fungi ###################
-Sap_field_hel_no <- as.data.frame(t(fungi_Flattening))[Field_group_scale$Sample_ID ,subset(ASV_tax_information, Guilds == "Saprotroph")$ASV_ID]
-Sap_field_hel_no <- Sap_field_hel_no[, colSums(Sap_field_hel_no) > 0]
-Sap_field_rela <- as.data.frame(decostand(t(Sap_field_hel_no), method = "total", MARGIN = 2))
-# colSums(Sap_field_rela)
-
-set.seed(1234)
-Sap_fungi_perM <- with(Field_group_scale, GUniFrac::adonis3(t(Sap_field_rela) ~ Origin * (Tave + Prec + Soil_ph + Wcont + Soil_N), method = "bray", by = "margin",
-                                                            data = Field_group_scale, permutations = 999, strata = Group))
-
-Sap_perM_tab <- as.data.frame(Sap_fungi_perM$aov.tab)
-Sap_perM_tab$R2 <- round(Sap_perM_tab$R2,3)
-Sap_perM_tab$df <- paste0(Sap_perM_tab$Df, ",", Sap_perM_tab$Df[length(Sap_perM_tab$Df)-1])
-Sap_perM_tab$`F` <- round(Sap_perM_tab$F.Model,2)
-Sap_perM_tab$Predictors <- c("Origin", "Temperature", "Precipitation", "Soil pH", "Wcont", "Soil N", 
-                              "Origin × Temperature", "Origin × Precipitation", "Origin × Soil pH", "Origin × Wcont", 
-                              "Origin × Soil N", "Residuals", "Total")
-Sap_perM_tab <- Sap_perM_tab[-c(12:13) ,c("Predictors", "df" ,"F", "R2", "Pr(>F)")] # Reorder
-rownames(Sap_perM_tab) <- NULL
-print(Sap_perM_tab)
-
