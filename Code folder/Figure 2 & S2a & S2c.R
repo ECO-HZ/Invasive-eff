@@ -218,8 +218,11 @@ Field_BC_data_all$Year = factor(Field_BC_data_all$Year, levels = rev(c("2018", "
 Field_pair_BC_sorted <- Field_BC_data_all %>% arrange(Site, Year, Origin)
 
 # Student’s t-tests for total database in field survey
-t.test(Field_pair_BC_sorted$Field_dist ~ Field_pair_BC_sorted$Origin)
+var.test(Field_dist ~ Origin, data = Field_pair_BC_sorted)
+
+t.test(Field_pair_BC_sorted$Field_dist ~ Field_pair_BC_sorted$Origin, var.equal = TRUE)
 (0.7951722 - 0.7759438)/0.7759438 # decreased 2.5% 
+
 
 # plot data for total database
 ggplot(Field_pair_BC_sorted, aes(x = Field_dist, y = "Overall", fill = Origin, color = Origin)) +
@@ -325,7 +328,10 @@ Green_Exotic_BC_long$Origin <- "Alien"
 # merge data
 Green_Pairwise_BC_data <- rbind(Green_Native_BC_long, Green_Exotic_BC_long)
 Green_Pairwise_BC_data$Origin <- factor(Green_Pairwise_BC_data$Origin, levels = c("Native","Alien"))
-t.test(Green_dist ~ Origin,Green_Pairwise_BC_data) 
+
+var.test(Green_dist ~ Origin, data = Green_Pairwise_BC_data)
+
+t.test(Green_dist ~ Origin,Green_Pairwise_BC_data, var.equal = TRUE) 
 # t = 0.4151, p = 0.6781
 
 # plot data for total database
@@ -393,17 +399,18 @@ mian_Fig_2_right
 mian_Fig_2_left|mian_Fig_2_right -> mian_Fig_2; mian_Fig_2
 
 
-############################### Figure S2a & 2c #################################
+############################### Figure S4a & 4c #################################
 # The relationships between the mean pairwise fungal compositional dissimilarity 
 # among co-occurring natives (b) or aliens (c) estimated in the field survey and 
 # those estimated in the greenhouse experiment. 
 
 pair_BC_sorted_merge = Field_pair_BC_sorted %>% left_join(Green_pair_BC_sorted)
 
+############################### Figure S4a #####################################
 # native database
 pair_BC_sorted_merge_nat = subset(pair_BC_sorted_merge, Origin == "Native")
 
-t.test(pair_BC_sorted_merge_nat$Field_dist, pair_BC_sorted_merge_nat$Green_dist)
+t.test(pair_BC_sorted_merge_nat$Field_dist, pair_BC_sorted_merge_nat$Green_dist, var.equal = TRUE)
 (0.7951722 - 0.6984232)/0.6984232 # increased 13.9%
 
 # Student t.test
@@ -471,15 +478,15 @@ ggplot()+
   #theme(legend.position = c(0.12, 0.60),
   #      legend.title = element_text(size = 10, color = "black")) + 
   labs(x = NULL, 
-       y = "Mean pair-wise Bray–Curtis dissimilarities\nestimated in the field",
-       tag = "a", title = c("Among co-occurring native species")) -> Figure_S2a; Figure_S2a
+       y = "Mean pairwise Bray–Curtis dissimilarities\nestimated in the field",
+       tag = "a", title = c("Among co-occurring native species")) -> Figure_S4a; Figure_S4a
 
 
-################################ Figure 2c #####################################
+############################### Figure S4c #####################################
 # Alien database
 pair_BC_sorted_merge_exo = subset(pair_BC_sorted_merge, Origin == "Alien")
 
-t.test(pair_BC_sorted_merge_exo$Field_dist, pair_BC_sorted_merge_exo$Green_dist)
+t.test(pair_BC_sorted_merge_exo$Field_dist, pair_BC_sorted_merge_exo$Green_dist, var.equal = TRUE)
 (0.7759438 - 0.7281435 )/0.7281435 # increased 6.6%
 
 # Student t.test
@@ -543,7 +550,8 @@ ggplot()+
   theme_bw() + mytheme + 
   #theme(legend.position = c(0.12, 0.60),
   #      legend.title = element_text(size = 10, color = "black")) + 
-  labs(x = "Mean pair-wise Bray–Curtis\ndissimilarities estimated in the greenhouse experiment", 
-       y = "", title = c("Among co-occurring alien species"), tag = "c") -> Figure_S2c; Figure_S2c
+  labs(x = "Mean pairwise Bray–Curtis\ndissimilarities estimated in the greenhouse experiment", 
+       y = "Mean pairwise Bray–Curtis dissimilarities\nestimated in the field", 
+       title = c("Among co-occurring non-native species"), tag = "c") -> Figure_S4c; Figure_S4c
 
 
