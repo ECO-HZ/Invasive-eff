@@ -1,223 +1,194 @@
 ################################################################################
 ################################# Figure S1 ####################################
 ################################################################################
-
-# loading R packages
+library(ggplot2) # version 3.5.2
 library(openxlsx) # version 4.2.5.2
-library(limma) # version 3.50.3
+library(emmeans) # version 1.10.6
 
-# Soil sample grouping information in field
-Field_group <- read.xlsx("Field_data_group.xlsx", sheet = "field_group", rowNames = T, colNames = T)
-Field_group$Sample_ID <- rownames(Field_group)
+# Custom style
+mytheme = theme(
+  legend.position = "none",
+  panel.grid=element_blank(), 
+  strip.background = element_rect(color="black", fill="white", size=0.5, linetype="solid"),
+  strip.text.x = element_text(size = 9, color = "black"), # face = "bold.italic"
+  legend.title = element_blank(),
+  legend.key = element_blank(),
+  legend.text = element_text(size = 10),
+  legend.background = element_rect(fill = NA), #axis.ticks.length = unit(0.4,"lines"), 
+  axis.ticks = element_line(color='black'),
+  axis.line = element_line(colour = "black"), 
+  axis.title.x = element_text(colour='black', size=14),
+  axis.title.y = element_text(colour='black', size=14),
+  axis.text = element_text(colour='black',size=12),
+  plot.title = element_textbox(
+    size = 14, color = "black", fill = "grey90",
+    box.color = "grey50",padding = margin(5, 5, 5, 5), margin = margin(b = 0),       
+    halign = 0.5, width = grid::unit(1, "npc")), #r = unit(3, "pt")     
+  plot.tag = element_text(size = 16, face = "bold")) 
 
-# Soil sample abundance information in field
-Field_otu_raw <- read.xlsx("Field_ASVs_raw_data.xlsx", sheet = "raw_ASVs", colNames = T, rowNames = T)
-rownames(Field_otu_raw) <- Field_otu_raw$`#OTU.ID`
-Field_otu_raw <- Field_otu_raw[ ,Field_group$Sample_ID]
-Field_otu_raw[1:6, 1:6]
-dim(Field_otu_raw)
-Field_otu_raw = Field_otu_raw[rowSums(Field_otu_raw) > 0, ]
-#View(as.data.frame(rowSums(Field_otu_raw)))
+# Loading the grouping metadata of soil samples
+Field_group = read.xlsx("Field_data_group.xlsx", sheet = "field_group", rowNames = T, colNames = T)
+Field_group$Sample_ID = rownames(Field_group)
 
-# loading sample grouping information in greenhouse exp.
-Green_group <- read.xlsx("Greenhouse_data_group.xlsx", sheet = "sample_group", colNames = T, rowNames = T)
-Green_group$Sample_ID <- rownames(Green_group)
-colnames(Green_group)
+# Data Transformation
+Field_group$SRL <- log10(Field_group$SRL)
+Field_group$Wcont <- sqrt(Field_group$Wcont)
+Field_group$Soil_N <- sqrt(Field_group$Soil_N)
+Field_group$Year <- as.factor(Field_group$Year)
+Field_group$Site <- factor(Field_group$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
+Field_group$Origin <- factor(Field_group$Origin, levels = c("Native","Exotic"))
 
-# loading sample grouping information in greenhouse exp.
-Green_otu_raw <- read.xlsx("Greenhouse_ASVs_raw_data.xlsx", sheet = "raw_ASVs", colNames = T, rowNames = T)
-rownames(Green_otu_raw) = Green_otu_raw$ASV_ID
-Green_otu_raw <- Green_otu_raw[ ,Green_group$Sample_ID]
-dim(Green_otu_raw)
-Green_otu_raw = Green_otu_raw[rowSums(Green_otu_raw) > 0, ]
-Green_otu_raw[1:6, 1:6]
-sum(Green_otu_raw)
+# Create an offset mapping
+offset_mapping <- c("2018" = -0.2, "2020" = 0, "2021" = 0.2)
 
-# show venn plot
-field_ASV = data.frame(ASV = rownames(Field_otu_raw), type = "Field")
-green_ASV = data.frame(ASV = rownames(Green_otu_raw), type = "Green")
+## Soil total nitrogen content
+data_Soil_N <- Field_group[,c("Origin", "Year" ,"Site", "Latitude", "Soil_N")]
 
-venn_data = rbind(field_ASV,green_ASV)
-venn_data$abun = 1
-venn_data <- as.data.frame(reshape2 ::acast(venn_data, formula = ASV ~ type , value.var = "abun", fill = 0))
-head(venn_data)
-colnames(venn_data) <- c( "Field survey", "Greenhouse experiment")
-venn_data=venn_data[rowSums(venn_data)>0,]
-v_venn_data=vennCounts(venn_data)
-vennDiagram(v_venn_data, circle.col = c('#3A648C', '#B79C64'), lwd=4, cex=1, scale=F)
-
-# Filter common ASV IDs
-common_ASVs <- intersect(rownames(Field_otu_raw), rownames(Green_otu_raw))
-length(common_ASVs)
-
-#Assessing the contribution of shared ASVs to community composition variation in
-#the field survey and the greenhouse experiment.
-
-# converted the raw ASVs abundance data to relative abundances in greenhouse exp.
-Green_otu_rel <- apply(Green_otu_raw, 2, function(x) x / sum(x))
-Green_otu_rel <- as.data.frame(Green_otu_rel)
-
-Green_long_abun <- data.frame(ASV = row.names(Green_otu_rel), Green_otu_rel) %>%
-  tidyr::pivot_longer(cols = -ASV, names_to = "Sample_ID",values_to = "abun") %>%
-  left_join(Green_group[,c("Sample_ID", "Species")])
-
-Green_mean_rel = Green_long_abun %>% group_by(Species, ASV) %>%
-  summarise(mean_abun = mean(abun))
-
-Green_mean_matrix <- Green_mean_rel %>%
-  tidyr::pivot_wider(names_from = Species, values_from = mean_abun, values_fill = 0) %>%
-  tibble::column_to_rownames("ASV") 
-
-# converted the raw ASVs abundance data to relative abundances in field survey
-Field_otu_rel <- apply(Field_otu_raw, 2, function(x) x / sum(x))
-Field_otu_rel <- as.data.frame(Field_otu_rel)
-colSums(Field_otu_rel)
+mod4 = lm(Soil_N ~ Year * Latitude, data = data_Soil_N)
+anova(mod4)
+shapiro.test(residuals(mod4))
 
 
-# The contribution of shared taxa to the variation in community composition was 
-# calculated separately for each site and year.
+mod4_emtrends <- emtrends(mod4, pairwise ~ Year, var = "Latitude")
+test(mod4_emtrends, adjust = "BH")
 
-Year = unique(Field_group$Year)
-Site = unique(Field_group$Site)
-diff_BC_merge_all = NULL
-
-for (i in Year) {
-  for (ii in Site) {
-    sub_group = subset(Field_group, Year == i & Site == ii)
-    
-    # Field survey
-    Field_otu_rel_sub = Field_otu_rel[,sub_group$Sample_ID]
-
-    # Step 1: Calculate compositional variation of the entire community.
-    x <- apply(combn(ncol(Field_otu_rel_sub), 2), 2, function(x) sum(abs(Field_otu_rel_sub[,x[1]] - Field_otu_rel_sub[,x[2]]))/2 )
-    x_names <- apply(combn(ncol(Field_otu_rel_sub), 2), 2, function(x) paste(colnames(Field_otu_rel_sub)[x], collapse=' - '))
-    Field_BC_full <- data.frame(x, x_names)
-    
-    # Step 2: Calculate compositional variation of the common community.
-    Field_common_sub <- Field_otu_rel_sub[common_ASVs, ]
-    x <- apply(combn(ncol(Field_common_sub), 2), 2, function(x) sum(abs(Field_common_sub[, x[1]] - Field_common_sub[, x[2]]))/2)
-    x_names <- apply(combn(ncol(Field_common_sub), 2), 2, function(x) paste(colnames(Field_common_sub)[x], collapse=' - '))
-    Field_BC_common <- data.frame(x, x_names)
-    
-    # add site, year information
-    diff_BC_Field <- left_join(Field_BC_full, Field_BC_common, by=c('x_names'))
-    diff_BC_Field$diff_BC <- diff_BC_Field$x.y/diff_BC_Field$x.x
-    diff_BC_Field$Years = i; diff_BC_Field$Site = ii; diff_BC_Field$Type = "Field"
-    
-    # add species information
-    split_names <- strsplit(diff_BC_Field$x_names, " - ")
-    diff_BC_Field$Sample_ID1 <- sapply(split_names, function(x) x[1])
-    diff_BC_Field$Sample_ID2 <- sapply(split_names, function(x) x[2])
-    
-    # add species information
-    diff_BC_Field$Species_1 <- sub_group$Species[match(diff_BC_Field$Sample_ID1, rownames(sub_group))]
-    diff_BC_Field$Species_2 <- sub_group$Species[match(diff_BC_Field$Sample_ID2, rownames(sub_group))]
-    
-    diff_BC_Field$Species_pair = paste0(diff_BC_Field$Species_1, " - ", diff_BC_Field$Species_2)
-    colnames(diff_BC_Field)[2] = "Sample_pair"
-    
-    
-    
-    # Greenhouse experiment
-    
-    # Step 1: Calculate compositional variation of the entire community.
-    Green_otu_rel_sub = Green_mean_matrix[, sub_group$Species]
-    
-    x <- apply(combn(ncol(Green_otu_rel_sub), 2), 2, function(x) sum(abs(Green_otu_rel_sub[,x[1]] - Green_otu_rel_sub[,x[2]]))/2 )
-    x_names <- apply(combn(ncol(Green_otu_rel_sub), 2), 2, function(x) paste(colnames(Green_otu_rel_sub)[x], collapse=' - '))
-    Green_BC_full <- data.frame(x, x_names)
-    
-    
-    # Step 2: Calculate compositional variation of the common community.
-    Green_common_matrix <- Green_otu_rel_sub[common_ASVs, ]
-    x <- apply(combn(ncol(Green_common_matrix), 2), 2, function(x) sum(abs(Green_common_matrix[, x[1]] - Green_common_matrix[, x[2]]))/2)
-    x_names <- apply(combn(ncol(Green_common_matrix), 2), 2, function(x) paste(colnames(Green_common_matrix)[x], collapse=' - '))
-    Green_BC_common <- data.frame(x, x_names)
-    
-    # add site, year information
-    diff_BC_Green <- left_join(Green_BC_full, Green_BC_common, by=c('x_names'))
-    #head(diff_BC_Green)
-    diff_BC_Green$diff_BC <- diff_BC_Green$x.y/diff_BC_Green$x.x
-    #mean(diff_BC_Green$diff_BC)
-    diff_BC_Green$Years = i; diff_BC_Green$Site = ii; diff_BC_Green$Type = "Greenhouse"
-    
-    # add species information
-    split_names <- strsplit(diff_BC_Green$x_names, " - ")
-    diff_BC_Green$Species_1 <- sapply(split_names, function(x) x[1])
-    diff_BC_Green$Species_2 <- sapply(split_names, function(x) x[2])
-    
-    # add species information
-    diff_BC_Green$Sample_ID1 <- sub_group$Sample_ID[match(diff_BC_Green$Species_1, sub_group$Species)]
-    diff_BC_Green$Sample_ID2 <- sub_group$Sample_ID[match(diff_BC_Green$Species_2, sub_group$Species)]
-    
-    diff_BC_Green$Sample_pair = paste0(diff_BC_Green$Sample_ID1, " - ", diff_BC_Green$Sample_ID2)
-    colnames(diff_BC_Green)[2] = "Species_pair"
-    
-    # merge dataset
-    # reorder
-    diff_BC_Green = diff_BC_Green[,colnames(diff_BC_Field)]
-    
-    diff_BC_merge = rbind(diff_BC_Field, diff_BC_Green)
-    
-    # sloop 
-    diff_BC_merge_all = rbind(diff_BC_merge_all, diff_BC_merge)
-    
-  }
-}
-
-site_colors <- c("Guangzhou" = "#F6DD61", "Guilin" = "#94684E", "Changsha" = "#BF5B1D",
-                 "Wuhan" = "#3E91B7", "Zhengzhou" = "#0E4879", "Tai'an" = "#CFBD9F")
-
-diff_BC_merge_all$Site <- factor(diff_BC_merge_all$Site, levels = c("Guangzhou","Guilin","Changsha","Wuhan","Zhengzhou","Tai'an"))
-diff_BC_merge_all$Type <- factor(diff_BC_merge_all$Type, levels = c("Field","Greenhouse"))
-diff_BC_merge_all$Years <- as.factor(diff_BC_merge_all$Years)
-
-diff_BC_merge_all %>% 
-  group_by(Type) %>% 
-  summarise(
-    mean_diff_BC = mean(diff_BC*100),
-    sd_diff_BC = sd(diff_BC*100),
-    se_diff_BC = sd(diff_BC*100) / sqrt(n()))
+ggplot() +
+  geom_point(data_Soil_N, mapping = aes(x = Latitude + offset_mapping[as.character(Year)], 
+                                        y = Soil_N, fill = Year, group = Year),
+             position = position_dodge(width = 0), size = 2.5, pch = 21) +  
+  geom_smooth(data_Soil_N, mapping = aes(x = Latitude, y = Soil_N, color = Year),
+              method = "lm", formula = y ~ x, se = F, size = 0.8, linetype = 1, alpha = 1) + 
+  ggpmisc::stat_poly_eq(data_Soil_N, mapping = aes(x = Latitude, y = Soil_N, color = Year, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")),
+                        formula = y ~ x, parse = TRUE, size = 4) +
+  geom_smooth(data = data_Soil_N, mapping = aes(x = Latitude, y = Soil_N), color = "black", 
+              method = "lm", formula = y ~ x, se = F, linetype = 1, size = 1.5) + 
+  ggpmisc::stat_poly_eq(data = data_Soil_N,  mapping = aes(x = Latitude, y = Soil_N, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
+                        formula = y ~ x, parse = TRUE, size = 4, color = "black", label.y.npc = "center") + 
+  theme_bw() + mytheme + theme(legend.position = c(0.8,0.8)) + 
+  scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
+  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A"), name = "Year") +
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
+  labs(x = NULL, y = "Soil total nitrogen content (%, sqrt)", tag = "a") -> p1; p1
 
 
-site_colors <- c("Guangzhou" = "#0E4879", "Guilin" = "#3E91B7", "Changsha" = "#999999",
-                 "Wuhan" = "#CFBD9F", "Zhengzhou" = "#94684E", "Tai'an" = "#BF5B1D")
+## Soil water content
+data_Wcont <- Field_group[,c("Origin", "Year" ,"Site", "Latitude", "Wcont")]
 
-type_colors <- c("Field" = "#3A648C", "Greenhouse" = "#B79C64")
+mod5 = lm(Wcont ~ Origin * Year * Latitude, data = data_Wcont)
+shapiro.test(residuals(mod5))
+mod5_emtrends <- emtrends(mod5, pairwise ~ Year, var = "Latitude")
+test(mod5_emtrends, adjust = "BH")
 
-ggplot(diff_BC_merge_all, aes(x = Site, y = diff_BC*100, fill = Years, color = Years)) +
-  geom_boxplot(color = "black", outlier.shape = 21, outlier.size = 0.8, width = 0.6,
-               position = position_dodge(width = 0.7)) +
-  stat_summary(aes(group = Years, fill = Years), fun.y = mean, geom = "point", shape = 23, size=1.8, #fill = "white",
-               color = "black", position = position_dodge(width = 0.7)) + 
-  #scale_color_manual(values = c("Field" = "#1C3C63", "Greenhouse" = "#93C8C0")) +
-  scale_fill_manual(values = c("2018" = alpha("#0A636D", 0.7), "2020" = alpha("#F8A318", 0.7), "2021" = alpha("#76322A", 0.7))) +
-  scale_y_continuous(labels = scales::label_comma(accuracy = 1), limits = c(0,100), 
-                     breaks = seq(0, 100, by = 25), expand = expansion(mult = c(0, 0.1))) +
-  scale_x_discrete(expand = expansion(mult = c(0, 0.2))) + 
-  geom_hline(yintercept = 50, linetype = 2) +
-  ggh4x::facet_grid2( Type ~. , #switch = "y", 
-                      strip = ggh4x::strip_themed(background_x = ggh4x::elem_list_rect(fill = site_colors),
-                                                  background_y = ggh4x::elem_list_rect(fill = type_colors))) +
-  theme_classic() +
-  theme(legend.position = c(0.9,0.15), 
-        legend.title = element_blank(),
-        legend.key = element_blank(),
-        legend.text = element_text(size = 10),
-        legend.background = element_rect(fill = NA), #axis.ticks.length = unit(0.4,"lines"), 
-        panel.grid=element_blank(), 
-        axis.line.y = element_line(color = 'black'),
-        axis.ticks = element_line(color = 'black'),
-        axis.title.x = element_text(colour = 'black', size = 14),
-        axis.title.y = element_text(colour = 'black', size = 14),
-        axis.text.y = element_text(colour = 'black', size = 12),
-        axis.text.x = element_text(colour = 'black', size = 12, angle = 35, vjust = 1, hjust = 1),
-        strip.background = element_rect(color=NA, size=0.5, linetype="solid"),
-        # strip.placement = "outside",
-        #panel.spacing = unit(0, "lines"),
-        strip.text = element_text(size = 12, colour = "black"),
-        plot.tag = element_text(size = 14, face = "bold")) +
-  labs(y = 'Shared taxa contributions\nto fungal community dissimilarity (%)', x = NULL, tag = "b") +
-  geom_segment(aes(x = 0, xend = 0, y = 1, yend = 3), color = "black")
+ggplot() +
+  geom_point(data_Wcont, mapping = aes(x = Latitude + offset_mapping[as.character(Year)], 
+                                       y = Wcont, fill = Year, group = Year),
+             position = position_dodge(width = 0), size = 2.5, pch = 21) +  
+  #geom_errorbar(data_Wcont_mean, mapping = aes(x = Latitude, y = mean_Wcont, ymin = mean_Wcont - se_Wcont, ymax = mean_Wcont + se_Wcont, color = Year, group = Year), 
+  #              width = 0.5, size = 0.5, position = position_dodge(width = 0)) +
+  geom_smooth(data_Wcont, mapping = aes(x = Latitude, y = Wcont, color = Year, linetype = Year),
+              method = "lm", formula = y ~ x, se = F, size = 0.8) + 
+  ggpmisc::stat_poly_eq(data_Wcont, mapping = aes(x = Latitude, y = Wcont, color = Year, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")),
+                        formula = y ~ x, parse = TRUE, size = 4) +
+  ## 整体数据集
+  geom_smooth(data = data_Wcont, mapping = aes(x = Latitude, y = Wcont), color = "black", 
+              method = "lm", formula = y ~ x, se = F, linetype = 1, size = 1.5) + 
+  ggpmisc::stat_poly_eq(data = data_Wcont,  mapping = aes(x = Latitude, y = Wcont, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
+                        formula = y ~ x, parse = TRUE, size = 4, color = "black", label.y.npc = "center") + 
+  theme_bw() + mytheme + 
+  scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
+  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
+  scale_linetype_manual(values = c(1,1,2)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
+  #scale_x_continuous(expand = expansion(mult = c(0.1, 0.1))) +
+  #scale_x_continuous(breaks=c(23.1,25.2,27.9,30.5,34.6,36.2)) + 
+  labs(x = NULL, y = "Soil water content (g g-1, sqrt)", tag = "b") -> p2; p2
+
+## Soil pH
+data_Soil_ph <- Field_group[,c("Origin", "Year" ,"Site", "Latitude", "Soil_ph")]
+
+mod3 = lm(Soil_ph ~ Year * Latitude, data = data_Soil_ph)
+anova(mod3)
+mod3_emtrends <- emtrends(mod3, pairwise ~ Year, var = "Latitude")
+test(mod3_emtrends, adjust = "BH")
+
+ggplot() +
+  geom_point(data_Soil_ph, mapping = aes(x = Latitude + offset_mapping[as.character(Year)], 
+                                         y = Soil_ph, fill = Year, group = Year),
+             position = position_dodge(width = 0), size = 2.5, pch = 21) +  
+  geom_smooth(data_Soil_ph, mapping = aes(x = Latitude, y = Soil_ph, color = Year, linetype = Year),
+              method = "lm", formula = y ~ x, se = F, size = 0.8, alpha = 1) + 
+  ggpmisc::stat_poly_eq(data_Soil_ph, mapping = aes(x = Latitude, y = Soil_ph, color = Year, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")),
+                        formula = y ~ x, parse = TRUE, size = 4) +
+  geom_smooth(data = data_Soil_ph, mapping = aes(x = Latitude, y = Soil_ph), color = "black", 
+              method = "lm", formula = y ~ x, se = F, linetype = 1, size = 1.5) + 
+  ggpmisc::stat_poly_eq(data = data_Soil_ph,  mapping = aes(x = Latitude, y = Soil_ph, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
+                        formula = y ~ x, parse = TRUE, size = 4, color = "black", label.y.npc = "center") + 
+  theme_bw() + mytheme + 
+  scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
+  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
+  scale_linetype_manual(values = c(2,1,1)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
+  labs(x = "Latitude (North degrees)", y = "Soil pH", tag = "c") -> p3; p3
+
+
+## annual average temperature 
+data_Tave <- unique(Field_group[,c("Year" ,"Site", "Latitude", "Tave")])
+
+mod1 = lm(Tave ~ Year * Latitude, data_Tave)
+anova(mod1)
+mod1_emtrends <- emtrends(mod1, pairwise ~ Year, var = "Latitude")
+test(mod1_emtrends, adjust = "BH")
+
+ggplot() +
+  geom_point(data_Tave, mapping = aes(x = Latitude + offset_mapping[as.character(Year)]
+                                      , y = Tave, fill = Year),
+             position = position_dodge(width = 0), size = 2.5, pch = 21) + 
+  geom_smooth(data_Tave, mapping = aes(x = Latitude, y = Tave, color = Year),
+              method = "lm", formula = y ~ x, se = F, size = 0.8, linetype = 1, alpha = 1) + 
+  ggpmisc::stat_poly_eq(data_Tave, mapping = aes(x = Latitude, y = Tave, color = Year, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")),
+                        formula = y ~ x, parse = TRUE, size = 4) + 
+  geom_smooth(data = data_Tave, mapping = aes(x = Latitude, y = Tave), color = "black", 
+              method = "lm", formula = y ~ x, se = F, linetype = 1, size = 1.5) + 
+  ggpmisc::stat_poly_eq(data = data_Tave,  mapping = aes(x = Latitude, y = Tave, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
+                        formula = y ~ x, parse = TRUE, size = 4, color = "black", label.y.npc = "center") + 
+  theme_bw() + mytheme + 
+  theme(legend.position = c(0.85,0.85)) + 
+  scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
+  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
+  labs(x = "Latitude (North degrees)", y = expression("Annual mean temperature ( " * degree * "C)"), tag = "d") -> p4; p4
+
+
+## annual precipitation
+data_Prec <- unique(Field_group[,c("Year" ,"Site", "Latitude", "Prec")])
+# anova(lm(Prec ~ Latitude, subset(data_Prec, Year == "2020")))
+mod2 = lm(Prec ~ Year * Latitude, data_Prec)
+anova(mod2)
+mod2_emtrends <- emtrends(mod2, pairwise ~ Year, var = "Latitude")
+test(mod2_emtrends, adjust = "BH")
+
+ggplot() +
+  geom_point(data_Prec, mapping = aes(x = Latitude + offset_mapping[as.character(Year)], 
+                                      y = Prec, fill = Year),
+             position = position_dodge(width = 0), size = 2.5, pch = 21) + 
+  geom_smooth(data_Prec, mapping = aes(x = Latitude, y = Prec, color = Year, linetype = Year),
+              method = "lm", formula = y ~ x, se = F, size = 0.8, alpha = 1) + 
+  ggpmisc::stat_poly_eq(data_Prec, mapping = aes(x = Latitude, y = Prec, color = Year, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")),
+                        formula = y ~ x, parse = TRUE, size = 4) + 
+  geom_smooth(data = data_Prec, mapping = aes(x = Latitude, y = Prec), color = "black", 
+              method = "lm", formula = y ~ x, se = F, linetype = 1, size = 1.5) + 
+  ggpmisc::stat_poly_eq(data = data_Prec,  mapping = aes(x = Latitude, y = Prec, label = paste(..rr.label.., ..p.value.label.., sep = "~~~")), 
+                        formula = y ~ x, parse = TRUE, size = 4, color = "black", label.y.npc = "center") + 
+  theme_bw() + mytheme +
+  scale_color_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) + 
+  scale_fill_manual(values = c("2018" = "#549299", "2020" = "#FABF5E","2021" = "#9F706A")) +
+  scale_linetype_manual(values = c(1,2,2)) + 
+  #scale_x_continuous(expand = expansion(mult = c(0.1, 0.1))) +
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) + 
+  #scale_x_continuous(breaks=c(23.1,25.2,27.9,30.5,34.6,36.2)) + 
+  labs(x = "Latitude (North degrees)", y = expression("Annual precipitation (mm)"), tag = "e") -> p5; p5
+
+
+(p1/p4)|(p2/p5)|(p3/p5)
 
 
