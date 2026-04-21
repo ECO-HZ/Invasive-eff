@@ -12,7 +12,7 @@ DATA & FILE OVERVIEW
     * 4. Greenhouse_ASVs_row_data.xlsx  
     * 5. Greenhouse_data_group.xlsx  
 
-The results supporting the community assembly analyses (including the calculation of Modified Stochasticity Ratio, MST) have been deposited in Figshare and are publicly available[![DOI](https://zenodo.org/badge/DOI/10.6084/m9.figshare.28139549.svg)](https://doi.org/10.6084/m9.figshare.32063493). Due to the large file size (approximately 500 MB), the data could not be hosted on GitHub.
+The results supporting the community assembly analyses (Modified Stochasticity Ratio, MST) have been deposited in Figshare and are publicly available[![DOI](https://zenodo.org/badge/DOI/10.6084/m9.figshare.28139549.svg)] (https://doi.org/10.6084/m9.figshare.32063493). Due to the large file size (approximately 500 MB), the data could not be hosted on GitHub.
     
 *List of phylogenetic tree data files (.newick)*  
 
