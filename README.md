@@ -4,17 +4,15 @@ DATA & FILE OVERVIEW
 
 ***In Data folder***
 
-The experimental data are also stored in Figshare [![DOI](https://zenodo.org/badge/DOI/10.6084/m9.figshare.28139549.svg)](https://doi.org/10.6084/m9.figshare.28139549.v2).
-
 *List of experimental data files (.xlsx)*
 
     * 1. Field_ASVs_raw_data.xlsx  
     * 2. Field_data_group.xlsx  
-    * 3. ASV_tax_information.xlsx (field survey)
-    * 4. cohesion_data.xlsx
-    * 5. Greenhouse_ASVs_row_data.xlsx  
-    * 6. Greenhouse_data_group.xlsx  
-    * 7. FungalTraits.xlsx  
+    * 3. cohesion_data.xlsx
+    * 4. Greenhouse_ASVs_row_data.xlsx  
+    * 5. Greenhouse_data_group.xlsx  
+
+The results supporting the community assembly analyses (including the calculation of Modified Stochasticity Ratio, MST) have been deposited in Figshare and are publicly available[![DOI](https://zenodo.org/badge/DOI/10.6084/m9.figshare.28139549.svg)](https://doi.org/10.6084/m9.figshare.32063493). Due to the large file size (approximately 500 MB), the data could not be hosted on GitHub.
     
 *List of phylogenetic tree data files (.newick)*  
 
@@ -27,17 +25,16 @@ The names of R-scripts correspond to the statistical analysis and visualization 
 *List of R-scripts*
 
     * 1. Figure 1.tiff (Draw in ppt)
-    * 2. Figure 2 & S2a & S2c.R  
+    * 2. Figure 2 & S4a & S4c.R  
     * 3. Figure 3a & 3c.R  
     * 4. Figure 3b & 3d.R  
     * 5. Figure 4.R  
     * 6. Figure S1.R
-    * 7. Figure S2b & S2d.R  
-    * 8. Figure S3
-    * 9. Figure S4.R  
-    * 10. Table S2 & Table S3 (field survey part).R  
-    * 11. Table S2 & Table S3 (greenhouse exp. part).R  
-    * 12. Table S4.R
+    * 7. Figure S2.R  
+    * 8. Figure S3.R  
+    * 9. Figure S4b & S4d.R  
+    * 10. Table S3.R  
+    * 11. Table S4.R
     
 **Data-specific onformation for:** ***Field_ASVs_row_data.xlsx***
 
@@ -78,14 +75,6 @@ The names of R-scripts correspond to the statistical analysis and visualization 
     * Sample_ID: Sample id of  plant rhizosphere soil 
     * cohesion.pos: positive cohesion of rhizosphere fungal community networks
     * cohesion.neg: negative cohesion of rhizosphere fungal community networks
-    
-**Data-specific onformation for:** ***FungalTraits.xlsx***
-
-    * The FungalTraits database (Põlme, S., Abarenkov, K., Henrik Nilsson, R., Lindahl, B.D., Clemmensen, K.E., Kauserud, H., et al. 2021. "FungalTraits: a user-friendly traits database of fungi and fungus-like stramenopiles." Fungal Diversity 105: 1-16.)
-
-**Data-specific onformation for:** ***ASV_tax_information.xlsx***
-
-    * Taxonomic information of fungal ASVs in rhizosphere samples during field survey.
   
 **Data-specific onformation for:** ***Greenhouse_ASVs_row_data.xlsx***
 
