@@ -232,23 +232,30 @@ Functinal_taxa_group <- Field_group
 Functinal_taxa_group$Origin[Functinal_taxa_group$Origin == "Exotic"] <- "Alien"
 Functinal_taxa_group$Origin <- factor(Functinal_taxa_group$Origin, levels = c("Native", "Alien"))
 
-t.test(Functinal_taxa_group$Rela_generalist*100 ~ Functinal_taxa_group$Origin)
+t.test(Functinal_taxa_group$Rela_generalist*100 ~ Functinal_taxa_group$Origin, var.equal = T)
+
+
 
 ggplot(data = Functinal_taxa_group, 
        aes(x = Origin, y = (Rela_generalist*100), fill = Origin)) +
+  #geom_boxplot(outliers = T, width = 0.35, color = "black") + 
   stat_summary(fun = mean, geom = "point", size = 3.5, color = "black", pch = 21) +
   stat_summary(fun.data = mean_ci_196, geom = "errorbar", 
                width = 0, color = "black") +
+  stat_compare_means(method = "t.test", 
+                     comparisons = list(c("Native", "Alien")), 
+                     label = "p.format",hide.ns = TRUE) +
   theme_bw() + mytheme +
   labs(x = "", y = "Relative abundance (%)", tag = "c", title = "Generalist") +
   scale_y_continuous(expand = expansion(mult = c(0.3, 0.3))) + 
   scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) -> p3_a; p3_a
 
 
-t.test(Functinal_taxa_group$Rela_specialist*100 ~ Functinal_taxa_group$Origin)
+t.test(Functinal_taxa_group$Rela_specialist*100 ~ Functinal_taxa_group$Origin, var.equal = T)
 
 ggplot(data = Functinal_taxa_group, 
        aes(x = Origin, y = (Rela_specialist*100), fill = Origin)) +
+  #geom_boxplot(outliers = T, width = 0.35, color = "black") + 
   stat_summary(fun = mean, geom = "point", size = 3.5, color = "black", pch = 21) +
   stat_summary(fun.data = mean_ci_196, geom = "errorbar", 
                width = 0, color = "black") +
@@ -258,8 +265,9 @@ ggplot(data = Functinal_taxa_group,
   scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) -> p3_b; p3_b
 
 # combination plot
-(p1|p2|p3_a|p3_b) + plot_layout(widths = c(0.5,0.5,0.2,0.2)) -> Figure_4_top
-# ggsave("Figure_4_top.pdf", plot = Figure_4_top, width = 13.32, height = 4.85, units = "in", dpi = 300)
+#(p1|p2|p3_a|p3_b) + plot_layout(widths = c(0.5,0.5,0.2,0.2)) -> Figure_4_top
+(p1|p2|p3_b) + plot_layout(widths = c(0.6,0.6,0.3)) -> Figure_4_top
+# ggsave("Figure_4_top2.pdf", plot = Figure_4_top, width = 13.32, height = 4.85, units = "in", dpi = 300)
 
 
 ############################# Figure 4d & 4e & 4f ##############################
@@ -305,7 +313,7 @@ tax.shuffle <- T
 use.custom.cors <- F
 
 # input data (36 data sets (native or alien per site per year))
-sub_field_group = subset(Field_group, Site == "Wuhan" & Year == "2020" & Origin == "Native")
+sub_field_group = subset(Field_group, Site == "Tai'an" & Year == "2021" & Origin == "Exotic")
 otu_filtered = Field_raw_abun[,sub_field_group$Sample_ID]
 otu_filtered = as.data.frame(t(otu_filtered[rowSums(otu_filtered) > 0, ]))
 otu_filtered[1:3,1:3]
@@ -430,6 +438,7 @@ print(output)
 
 # Lading saved cohesion index data
 cohesion_data <- read.xlsx("cohesion_data.xlsx", sheet = "cohesion", colNames = T, rowNames = F)
+colnames(cohesion_data)
 
 # add other group information
 Field_group2 = Field_group %>% left_join(cohesion_data)
@@ -438,7 +447,7 @@ Field_group2$Origin[Field_group2$Origin == "Exotic"] <- "Alien"
 Field_group2$Origin <- factor(Field_group2$Origin, levels = c("Native", "Alien"))
 
 ################################# Figure 4d ####################################
-t.test(Field_group2$total.cohesion ~ Field_group2$Origin)
+t.test(Field_group2$total.cohesion ~ Field_group2$Origin, var.equal = T)
 (0.4069875-0.3846417)/0.3846417
 
 ggplot(data = Field_group2, aes(x = Origin, y = total.cohesion, fill = Origin)) +
@@ -450,10 +459,10 @@ ggplot(data = Field_group2, aes(x = Origin, y = total.cohesion, fill = Origin)) 
   #                   label = "p.format", hide.ns = TRUE) +
   scale_fill_manual(values = c("Native" = "#356A5D", "Alien" = "#ECD45D")) + 
   #scale_y_continuous(expand = expansion(mult = c(0.1, 0.2))) +
-  labs(x = "", y = "Tatal cohesion", tag = "d") -> Figure_4d_left; Figure_4d_left
+  labs(x = "", y = "Total cohesion", tag = "d") -> Figure_4d_left; Figure_4d_left
 
 # Slope 
-mod1 <- lm(scale(total.cohesion) ~ Origin*scale(Tave), data = Field_group2)
+mod1 <- lm(total.cohesion ~ Origin*Tave, data = Field_group2)
 anova(mod1)
 mod1_emtrends <- emtrends(mod1, pairwise ~ Origin, var = "Tave")
 test(mod1_emtrends, adjust = "BH")
@@ -487,7 +496,7 @@ Figure_4d_left + Figure_4d_right + plot_layout(widths = c(0.25, 0.7)) -> Figure_
 
 
 ################################# Figure 4e ####################################
-t.test(Field_group2$cohesion.pos ~ Field_group2$Origin)
+t.test(Field_group2$cohesion.pos ~ Field_group2$Origin, var.equal = T)
 
 ggplot(data = Field_group2, aes(x = Origin, y = cohesion.pos, fill = Origin)) +
   geom_boxplot(outliers = T, width = 0.35, color = "black") + 
@@ -501,7 +510,7 @@ ggplot(data = Field_group2, aes(x = Origin, y = cohesion.pos, fill = Origin)) +
   labs(x = "", y = "Positive cohesion", tag = "e") -> Figure_4e_left; Figure_4e_left
 
 # Slope 
-mod2 <- lm(scale(cohesion.pos) ~ Origin*scale(Tave), data = Field_group2)
+mod2 <- lm(cohesion.pos ~ Origin*Tave, data = Field_group2)
 anova(mod2)
 mod2_emtrends <- emtrends(mod2, pairwise ~ Origin, var = "Tave")
 test(mod2_emtrends, adjust = "BH")
@@ -535,7 +544,7 @@ Figure_4e_left + Figure_4e_right + plot_layout(widths = c(0.25, 0.7)) -> Figure_
 
 
 ################################# Figure 4f ####################################
-t.test(Field_group2$cohesion.neg ~ Field_group2$Origin)
+t.test(Field_group2$cohesion.neg ~ Field_group2$Origin, var.equal = T)
 
 ggplot(data = Field_group2, aes(x = Origin, y = cohesion.neg, fill = Origin)) +
   geom_boxplot(outliers = T, width = 0.35, color = "black") + 
@@ -549,7 +558,7 @@ ggplot(data = Field_group2, aes(x = Origin, y = cohesion.neg, fill = Origin)) +
   labs(x = "", y = "Negative cohesion", tag = "f") -> Figure_4f_left; Figure_4f_left
 
 # Slope 
-mod3 <- lm(scale(cohesion.neg) ~ Origin*scale(Tave), data = Field_group2)
+mod3 <- lm(cohesion.neg ~ Origin*Tave, data = Field_group2)
 anova(mod3)
 mod3_emtrends <- emtrends(mod3, pairwise ~ Origin, var = "Tave")
 test(mod3_emtrends, adjust = "BH")
@@ -629,6 +638,8 @@ DATA_nst_filter$Orign_within[DATA_nst_filter$Orign_within == "Native|Native"] <-
 DATA_nst_filter$Orign_within[DATA_nst_filter$Orign_within == "Exotic|Exotic"] <- "Alien"
 DATA_nst_filter$Orign_within <- factor(DATA_nst_filter$Orign_within, levels = c("Native", "Alien"))
 
+t.test(DATA_nst_filter$MST.ij.bray ~ DATA_nst_filter$Orign_within, var.equal = T)
+
 ggplot(data = DATA_nst_filter, aes(x = Orign_within, y = MST.ij.bray, fill = Orign_within)) +
   geom_boxplot(outliers = T, width = 0.35, color = "black") + 
   stat_summary(fun.y = mean, geom = "point", shape = 23, size=2, color = "black", aes(fill = Orign_within)) + 
@@ -640,7 +651,7 @@ ggplot(data = DATA_nst_filter, aes(x = Orign_within, y = MST.ij.bray, fill = Ori
   labs(x = "", y = "Modified stochasticity ratio (%)", tag = "g") -> Figure_4g_left; Figure_4g_left
 
 
-mod4 = lm(scale(MST.ij.bray) ~ Orign_within*scale(Tave), data = DATA_nst_filter)
+mod4 = lm(MST.ij.bray ~ Orign_within*Tave, data = DATA_nst_filter)
 anova(mod4)
 mod4_emtrends <- emtrends(mod4, pairwise ~ Orign_within, var = "Tave")
 test(mod4_emtrends, adjust = "BH")
