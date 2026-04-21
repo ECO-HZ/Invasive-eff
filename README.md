@@ -1,4 +1,4 @@
-The following files allow one to reproduce analyses in the manuscript entitled "Warming-induced divergence in native rhizosphere fungi amplifies invasion-driven soil biotic homogenization".
+The following files allow one to reproduce analyses in the manuscript entitled "Rhizosphere fungal communities are more similar among non-native than native plants in warmer environments".
 
 DATA & FILE OVERVIEW
 
