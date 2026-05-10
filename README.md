@@ -1,4 +1,4 @@
-The following files allow one to reproduce analyses in the manuscript entitled "Rhizosphere fungal communities are more similar among non-native than native plants in warmer environments".
+The following files allow one to reproduce analyses in the manuscript entitled "Temperature-dependent belowground homogenization associated with non-native plant invasion".
 
 DATA & FILE OVERVIEW
 
